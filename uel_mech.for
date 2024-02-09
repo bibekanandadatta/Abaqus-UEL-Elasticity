@@ -7,17 +7,17 @@
 ************************************************************************
 !                       JTYPE DEFINITION
 !
-!     U1                PLANE STRAIN TRlist3 ELEMENT
+!     U1                PLANE STRAIN TRI3 ELEMENT
 !     U2                PLANE STRAIN TRI6 ELEMENT
 !     U3                PLANE STRAIN QUAD4 ELEMENT
 !     U4                PLANE STRAIN QUAD8 ELEMENT
 !
 !     U5                THREE-DIMENSIONAL TET4 ELEMENT
-!     U6    	          THREE-DIMENSIONAL TET10 ELEMENT
-!     U7  	            THREE-DIMENSIONAL HEX8 ELEMENT
-!     U8 	              THREE-DIMENSIONAL HEX20 ELEMENT 
+!     U6                THREE-DIMENSIONAL TET10 ELEMENT
+!     U7                THREE-DIMENSIONAL HEX8 ELEMENT
+!     U8                THREE-DIMENSIONAL HEX20 ELEMENT
 ************************************************************************
-!               VARIABLES TO BE UPDATED WITHIN THE SUBROUTNE
+!               VARIABLES TO BE UPDATED WITHIN THE SUBROUTINE
 !
 !     RHS(i)                        Right hand side vector.
 !     AMATRX(i,j)                   Stiffness matrix
@@ -66,18 +66,18 @@
 !     PREDEF(1,...)                 Value of predefined field
 !     PREDEF(2,...)                 Increment in predefined field
 !     PREDEF(1:2,1,k)               Value of temperature/temperature increment at kth node
-!     PREDEF(1:2,2:NPREDF,k)        Value of user defined field/field increment at kth node 
+!     PREDEF(1:2,2:NPREDF,k)        Value of user defined field/field increment at kth node
 !     NPREDF                        Number of predefined fields
 !     LFLAGS                        Load type control variable
 !     MLVARX                        Dimension variable
 !     PERIOD                        Time period of the current step
 ************************************************************************
-!                       LIST OF MATERIAL PROPERTIES 
+!                       LIST OF MATERIAL PROPERTIES
 !
 !     props(1)   = E                Young's modulus
 !     props(2)   = nu               Poisson ratio
 ************************************************************************
-!                       LIST OF ELEMENT PROPERTIES 
+!                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
 !     jprops(2)   = nIntS           no of integration points on surface
@@ -91,17 +91,17 @@
 ************************************************************************
 
       MODULE PARAMETERS
-      
+
       real*8 :: zero, one, two, three, four, five, six, eight, nine,
      &      half, third, fourth, fifth, sixth, eighth, eps, pi
 
-      parameter( zero = 0.d0, one =  1.d0, two = 2.d0, three = 3.d0, 
-     &      four = 4.d0, five = 5.d0, six = 6.d0, eight = 8.d0, 
-     &      nine = 9.d0, half= 0.5d0, third = 1.d0/3.d0, 
-     &      fourth = 0.25d0, fifth = 1.d0/5.d0, sixth = 1.d0/6.d0, 
+      parameter( zero = 0.d0, one =  1.d0, two = 2.d0, three = 3.d0,
+     &      four = 4.d0, five = 5.d0, six = 6.d0, eight = 8.d0,
+     &      nine = 9.d0, half= 0.5d0, third = 1.d0/3.d0,
+     &      fourth = 0.25d0, fifth = 1.d0/5.d0, sixth = 1.d0/6.d0,
      &      eighth = 0.125d0, eps = 1.d-08,
      &      pi = 3.14159265358979323846264338327950d0)
-      
+
       ! no of symmetric and unSymmmetric tensor components
       integer, parameter:: nSymm = 6, nUnsymmm = 9
 
@@ -112,7 +112,7 @@
       ! elemOffset should match with the number used in input file
 
       real*8, allocatable:: globalPostVars(:,:,:)
-      
+
       real*8 :: ID2(2,2), ID3(3,3)
       parameter(ID2 = reshape((/1.d0,0.d0,0.d0,1.d0/),(/2,2/)),
      &          ID3 = reshape((/1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,
@@ -143,9 +143,9 @@
       real*8 :: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
      &      PROPS, COORDS, DUall, Uall, Vel, Accn, TIME, DTIME,
      &      PARAMS, ADLMAG, PREDEF, DDLMAG, PERIOD
-     
+
       integer:: NDOFEL, NRHS, NSVARS, NPROPS, MCRD, NNODE, JTYPE,
-     &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS, 
+     &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS,
      &      MLVARX, MDLOAD, JPROPS, NJPROPS
 
       integer:: nInt, localPostVars
@@ -162,87 +162,87 @@
       call getJobName(jobName,lenJobName)
       call getOutDir(outDir,lenOutDir)
       fileName = outDir(1:lenOutDir)//'\aaMSG_'//
-     +     jobName(1:lenJobName)//'.dat'
+     &     jobName(1:lenJobName)//'.dat'
       open(unit=80,file=fileName,status='unknown')
 
 
 
       ! change the LFLAGS criteria as needed (check abaqus UEL manual)
-			if((lflags(1).eq.1).or.(lflags(1).eq.2)) then
-				ABQ_PROCEDURE = 'STATIC'
+      if((lflags(1).eq.1).or.(lflags(1).eq.2)) then
+        ABQ_PROCEDURE = 'STATIC'
       else
-				write(*,*) 'ABAQUS does not have the right procedure'
-				call xit
-	 		endif
+        write(*,*) 'ABAQUS does not have the right procedure'
+        call xit
+       endif
 
-			! check if the procedure is linear or nonlinear
-			if (lflags(2).eq.0) then
-				nlgeom = .false.
-			elseif (lflags(2).eq.1) then
-				nlgeom = .true.
-			endif
+      ! check if the procedure is linear or nonlinear
+      if (lflags(2).eq.0) then
+        nlgeom = .false.
+      elseif (lflags(2).eq.1) then
+        nlgeom = .true.
+      endif
 
       ! check to see if it's a general step or a linear purturbation step
       if(lflags(4).eq.1) then
-				write(*,*) 'the load step should be a general step'
-				call xit         
+        write(*,*) 'the load step should be a general step'
+        call xit
       endif
 
 
       ! assign parameter specific to analysis and element types
-      if ((JTYPE.ge.1).and.(JTYPE.le.4)) then               
-				analysis = 'PE'         ! plane strain analysis
-				nDim = 2
-				ndi = 2
-				nshr = 1
-				ntens = 3
-      elseif ((JTYPE.ge.5).and.(JTYPE.le.8)) then  
-				analysis = '3D'         ! three-dimensional analysis
-				nDim = 3
-				ndi = 3
-				nshr = 3
-				ntens = 6
+      if ((JTYPE.ge.1).and.(JTYPE.le.4)) then
+        analysis = 'PE'         ! plane strain analysis
+        nDim = 2
+        ndi = 2
+        nshr = 1
+        ntens = 3
+      elseif ((JTYPE.ge.5).and.(JTYPE.le.8)) then
+        analysis = '3D'         ! three-dimensional analysis
+        nDim = 3
+        ndi = 3
+        nshr = 3
+        ntens = 6
       else
-				write(*,*) 'element type is not supported', JTYPE
-				call xit
+        write(*,*) 'element type is not supported', JTYPE
+        call xit
       endif
 
       ! for mixed or coupled problem, add other DOF counts as needed
       uDOF = nDim             ! displacement degrees of freedom of a node
       uDOFEL = nNode*uDOF     ! total displacement degrees of freedom in element
-      
+
 
       nInt = jprops(1)
       localPostVars = jprops(2)
 
       ! array containing variables for post-processing
       if (.not. allocated(globalPostVars)) then
-				allocate(globalPostVars(numElem,nInt,localPostVars))
+        allocate(globalPostVars(numElem,nInt,localPostVars))
 
-				! print necessary information to the screen now (one time)
-				write(*,*) '---------------------------------------'
-				write(*,*) '------- ABAQUS SMALL STRAIN UEL -------'
-				write(*,*) '---------------------------------------'
-				write(*,*) jobName
-				write(*,*) '---------------------------------------'
-				write(*,*) '------- PROCEDURE = ', ABQ_PROCEDURE
-				write(*,*) '------- ANALYSIS TYPE   = ', analysis 
+        ! print necessary information to the screen now (one time)
+        write(*,*) '---------------------------------------'
+        write(*,*) '------- ABAQUS SMALL STRAIN UEL -------'
+        write(*,*) '---------------------------------------'
+        write(*,*) jobName
+        write(*,*) '---------------------------------------'
+        write(*,*) '------- PROCEDURE = ', ABQ_PROCEDURE
+        write(*,*) '------- ANALYSIS TYPE   = ', analysis
         write(*,*) '---------- NLGEOM = ', NLGEOM
         write(*,*) '------- MODEL DIMENSION = ', nDim
-				write(*,*) '------- ELEMENT NODES   = ', NNODE
-				write(*,*) '---------------------------------------'
-				write(*,*) '-------- INTEGRATION SCHEME -----------'
-				write(*,*) '----------- NINT  = ', nInt
-				write(*,*) '---------------------------------------'
-				write(*,*) '---------- POST-PROCESSING ------------'
-				write(*,*) '--- NO OF ELEMENTS            = ', numElem 
-				write(*,*) '--- DUMMY ELEMENT OFFSET      = ', ElemOffset
-				write(*,*) '--- NO OF VARIABLES AT INT PT = ', localPostVars
-				write(*,*) '---------------------------------------'
+        write(*,*) '------- ELEMENT NODES   = ', NNODE
+        write(*,*) '---------------------------------------'
+        write(*,*) '-------- INTEGRATION SCHEME -----------'
+        write(*,*) '----------- NINT  = ', nInt
+        write(*,*) '---------------------------------------'
+        write(*,*) '---------- POST-PROCESSING ------------'
+        write(*,*) '--- NO OF ELEMENTS            = ', numElem
+        write(*,*) '--- DUMMY ELEMENT OFFSET      = ', ElemOffset
+        write(*,*) '--- NO OF VARIABLES AT INT PT = ', localPostVars
+        write(*,*) '---------------------------------------'
 
       endif
 
-      
+
 
       ! call your UEL subroutine
        call uel_MECH(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
@@ -265,7 +265,7 @@
 
       USE PARAMETERS
 
-		!!!!!!!!!!!!!!! VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!! VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!!!!
 
       DIMENSION RHS(MLVARX,*),AMATRX(NDOFEL,NDOFEL),PROPS(*),
      & SVARS(*),ENERGY(8),COORDS(MCRD,NNODE),UAll(NDOFEL),
@@ -277,7 +277,7 @@
       real*8 :: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
      &      PROPS, COORDS, DUall, Uall, Vel, Accn, TIME, DTIME,
      &      PARAMS, ADLMAG, PREDEF, DDLMAG, PERIOD
-     
+
       integer:: NDOFEL, NRHS, NSVARS, NPROPS, MCRD, NNODE, JTYPE,
      &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS,
      &      MLVARX, MDLOAD, JPROPS, NJPROP
@@ -285,23 +285,23 @@
 
       character*8 :: analysis
       integer:: nDim, ndi, nshr, ntens, uDOF, uDOFEL
-	    logical:: nlgeom
-      
-      real*8 :: ID(nDim,nDim), w(nInt), xi(nInt,nDim), 
+      logical:: nlgeom
+
+      real*8 :: ID(nDim,nDim), w(nInt), xi(nInt,nDim),
      &      Nxi(nNode,1), dNdxi(nNode,nDim), dxdxi(nDim,nDim),
      &      dxidx(nDim,nDim), dNdx(nNode,nDim), detJ,
-     &      Na(nDim,nDim), Nmat(nDim,uDOFEl), 
+     &      Na(nDim,nDim), Nmat(nDim,uDOFEl),
      &      Ba(ntens,nDim), Bmat(ntens,uDOFEl),
      &      Ga(nDim*nDim,nDim), Gmat(nDim*nDim,uDOFEL),
      &      fieldNode(npredf,nNode), dfieldNode(npredf,nNode),
      &      fieldVar(npredf), dfieldVar(npredf),
      &      Kuu(uDOFEl,uDOFEl), Ru(uDOFEl,1)
 
-		  real*8 :: stran(ntens,1), dstran(ntens,1), Dmat(ntens,ntens),
+      real*8 :: stran(ntens,1), dstran(ntens,1), Dmat(ntens,ntens),
      &      stress(ntens,1), stranVoigt(nSymm,1), dstranVoigt(nSymm,1)
 
       integer:: i, j, intPt, istat
-		  
+
       ! initialize the matrices and vectors
       Na = zero
       Ba = zero
@@ -310,28 +310,28 @@
       Bmat  = zero
       Gmat = zero
       Dmat = zero
-	    Kuu = zero
+      Kuu = zero
       Ru = zero
 
       AMATRX(1:NDOFEL,1:NDOFEL) = zero
       RHS(1:MLVARX,1) = zero
 
-		  !!!!!!!!!!!!! END VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!
+      !!!!!!!!!!!!! END VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!
 
 
-		  
-	    !!!!!!!!!!!!!!!!! ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!!!!!!!
 
-		  ! obtain gauss quadrature points and weight
+      !!!!!!!!!!!!!!!!! ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!!!!!!!
+
+      ! obtain gauss quadrature points and weight
       if (nDim.eq.2) then
-				ID = ID2
-				call gaussQuadrtr2(nNode,nInt,w,xi)
+        ID = ID2
+        call gaussQuadrtr2(nNode,nInt,w,xi)
       elseif (nDim.eq.3) then
-				ID = ID3
-				call gaussQuadrtr3(nNode,nInt,w,xi)
+        ID = ID3
+        call gaussQuadrtr3(nNode,nInt,w,xi)
       else
-				write(*,*) 'incorrect model dimension'
-				call xit
+        write(*,*) 'incorrect model dimension'
+        call xit
       endif
 
       ! if applicable gather the prescribed field variables in a vector
@@ -355,7 +355,7 @@
 
         ! calculate element jacobian and global gradient
         dxdxi   = matmul(coords,dNdxi)      ! calculate dxdxi
-    
+
         if (nDim.eq.2) then
           call inverseMat2(dxdxi,dxidx,detJ,istat)
         elseif(nDim.eq.3) then
@@ -371,9 +371,9 @@
 
         ! interpolate the field variable at the integration point
         ! (as shown below - not tested)
-    !     fieldVar = dot_product(reshape(Nxi,(/nNode/)), 
+    !     fieldVar = dot_product(reshape(Nxi,(/nNode/)),
     !  &                        reshape(fieldNode,(/nNode/)))
-    !     dfieldVar = dot_product(reshape(Nxi,(/nNode/)), 
+    !     dfieldVar = dot_product(reshape(Nxi,(/nNode/)),
     !  &                        reshape(dfieldNode,(/nNode/)))
 
 
@@ -414,47 +414,47 @@
           Bmat(1:nTens,nDim*(i-1)+1:nDim*i) = Ba(1:nTens,1:nDim)
           Gmat(1:nDim**2,nDim*(i-1)+1:nDim*i) = Ga(1:nDim**2,1:nDim)
         enddo                             ! end of nodal point loop
-        
-	      !!!!!!!!!!!!! COMPLETE ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!
+
+        !!!!!!!!!!!!! COMPLETE ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!
 
 
         !!!!!!!!!!!!!!!!!!!! KINEMATIC CALCULATION !!!!!!!!!!!!!!!!!!!!!
 
-	   		! calculate strain, dstran, or deformation gradient
-	      stran = matmul(Bmat,reshape(Uall(1:uDOFEl),(/uDOFEL,1/)))
+         ! calculate strain, dstran, or deformation gradient
+        stran = matmul(Bmat,reshape(Uall(1:uDOFEl),(/uDOFEL,1/)))
         dstran = matmul(Bmat,reshape(DUall(1:uDOFEl,1),(/uDOFEL,1/)))
 
         call voigtAugment(stran,stranVoigt,ntens)
         call voigtAugment(stran,stranVoigt,ntens)
 
-		    !!!!!!!!!!!!!!!!!!! END KINEMATIC CALCULATION !!!!!!!!!!!!!!!!!!
-			
+        !!!!!!!!!!!!!!!!!!! END KINEMATIC CALCULATION !!!!!!!!!!!!!!!!!!
 
-		    !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!
 
-	   		!call material point subroutine (UMAT) for specific material
-		    call umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
+        !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!
+
+         !call material point subroutine (UMAT) for specific material
+        call umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
      &           svars,nsvars,time,dtime,fieldVar,dfieldVar,npredf,
      &           nDim,ndi,nshr,ntens,jelem,intPt,coords,nNode,kstep,kinc,
      &           props,nprops,jprops,njprops,analysis)
 
-		    !!!!!!!!!!!!!!!!!!!! END CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!! END CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!
 
 
-		    !!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!
-        Kuu = Kuu + 
+        !!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!
+        Kuu = Kuu +
      &      w(intPt)*detJ*matmul(transpose(Bmat), matmul(Dmat,Bmat))
         Ru  = Ru - w(intPt)*detJ* matmul(transpose(Bmat),stress)
 
-		    !!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!
+        !!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!
 
       enddo                             ! end of integration point loop
 
-      
 
-	 		! for mechanical element, surface load contribution can be 
-	 		! added using dummy elements. so it is not done here.
-	    ! for other type of surface loads run a loop over nIntS 
+
+       ! for mechanical element, surface load contribution can be
+       ! added using dummy elements. so it is not done here.
+      ! for other type of surface loads run a loop over nIntS
 
 
       ! assign the element stiffness matrix to abaqus-defined variables
@@ -468,7 +468,7 @@
 ************************************************************************
 ************************************************************************
 
-	 	  SUBROUTINE umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
+       SUBROUTINE umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
      &           svars,nsvars,time,dtime,fieldVar,dfieldVar,npredf,
      &           nDim,ndi,nshr,ntens,jelem,npt,coords,nNode,kstep,kinc,
      &           props,nprops,jprops,njprops,analysis)
@@ -479,38 +479,38 @@
       ! by using the state variable SVARS
       ! field-dependent response can also be fieldVar and dfieldVar
 
-		  USE PARAMETERS
+      USE PARAMETERS
 
-		  IMPLICIT NONE
+      IMPLICIT NONE
 
-		  integer:: nsvars, npredf, nDim, ndi, nshr, ntens,
+      integer:: nsvars, npredf, nDim, ndi, nshr, ntens,
      &    jelem, npt, nNode, kstep, kinc, nprops, njprops
 
-		  real*8 :: stress(ntens,1), stran(ntens,1), dmat(ntens,ntens), 
+      real*8 :: stress(ntens,1), stran(ntens,1), dmat(ntens,ntens),
      &    stranVoigt(nSymm,1), dstranVoigt(nSymm,1), props(1:nprops),
-     &    svars(1:nsvars), coords(ndim,nnode), time(2), dtime, 
+     &    svars(1:nsvars), coords(ndim,nnode), time(2), dtime,
      &    fieldVar(npredf), dfieldVar(npredf)
 
-		  integer:: jprops(1:njprops)
-		  character*8 :: analysis
+      integer:: jprops(1:njprops)
+      character*8 :: analysis
 
 
-		  ! variables local to the subroutine
+      ! variables local to the subroutine
       real*8 :: E, nu, lambda, mu, Cmat(3,3,3,3), VoigtMat(nSymm,nSymm),
      &          stressVoigt(nSymm,1)
-	    integer:: nInt, nlocalSdv
+      integer:: nInt, nlocalSdv
 
-	    ! loop counters
+      ! loop counters
       integer:: i, j, k, l
 
-		  ! initialize matrial stiffness tensors
+      ! initialize matrial stiffness tensors
       Cmat   = zero
       Dmat   = zero
 
-	    nInt   = jprops(1)
-		  nlocalSdv = NSVARS/nInt
+      nInt   = jprops(1)
+      nlocalSdv = NSVARS/nInt
 
-	    ! assign material properties to variables
+      ! assign material properties to variables
       E      = props(1)        ! Young's modulus
       nu     = props(2)        ! Poisson's ratio
 
@@ -518,57 +518,57 @@
       mu     = E/(2*(1+nu))
 
 
-		  do i = 1,3
-				do j = 1,3
-					do k = 1,3
-						do l = 1,3
-							Cmat(i,j,k,l) = lambda* ID3(i,j)*ID3(k,l) +
+      do i = 1,3
+        do j = 1,3
+          do k = 1,3
+            do l = 1,3
+              Cmat(i,j,k,l) = lambda* ID3(i,j)*ID3(k,l) +
      &                   mu*( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
-						enddo
-					enddo    
-				enddo
-			enddo
+            enddo
+          enddo
+        enddo
+      enddo
 
-			! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
-			call tangent2matrix(Cmat,VoigtMat)
+      ! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
+      call tangent2matrix(Cmat,VoigtMat)
 
       ! calculate stress in Voigt vector form
       stressVoigt = matmul(Voigtmat,stranVoigt)
 
       ! save solution-dependent state variables in SVARS
-			! useful in mechanical problems with internal variables 
-	 	  ! such as plasticity, viscoelasticity, etc.
-			! also perhpas in other time-dependent field problems
+      ! useful in mechanical problems with internal variables
+       ! such as plasticity, viscoelasticity, etc.
+      ! also perhpas in other time-dependent field problems
       ! do other calculations as needed based on SVARS
 
 
       ! reshape the Voigt form based on analysis
-			if (analysis .eq. 'PE') then 
-				Dmat(1:ndi,1:ndi) = VoigtMat(1:ndi,1:ndi)
-				Dmat(1:ndi,ntens) = VoigtMat(1:ndi,nSymm)
-				Dmat(ntens,1:ndi) = VoigtMat(nSymm,1:ndi)
-				Dmat(ntens,ntens) = VoigtMat(nSymm,nSymm)
+      if (analysis .eq. 'PE') then
+        Dmat(1:ndi,1:ndi) = VoigtMat(1:ndi,1:ndi)
+        Dmat(1:ndi,ntens) = VoigtMat(1:ndi,nSymm)
+        Dmat(ntens,1:ndi) = VoigtMat(nSymm,1:ndi)
+        Dmat(ntens,ntens) = VoigtMat(nSymm,nSymm)
 
         ! calculate stress vector (Voigt notation)
         call voigtTruncate(stressVoigt,stress,ntens)
         call voigtTruncate(stranVoigt,stran,ntens)
 
-			elseif (analysis .eq. '3D') then 
-				Dmat = VoigtMat
+      elseif (analysis .eq. '3D') then
+        Dmat = VoigtMat
         stress = stressVoigt
-			else 
-				write(*,*) 'wrong analysis type'
-				call xit
-			endif
-			
-			
-	    ! save the variables to be post-processed in globalPostVars
-		  ! globalPostVars(jelem,npt,1:ntens) = stress(1:ntens,1)
-		  ! globalPostVars(jelem,npt,ntens+1:2*ntens) = stran(1:ntens,1)
+      else
+        write(*,*) 'wrong analysis type'
+        call xit
+      endif
 
-			RETURN
 
-			END SUBROUTINE umatElastic
+      ! save the variables to be post-processed in globalPostVars
+      ! globalPostVars(jelem,npt,1:ntens) = stress(1:ntens,1)
+      ! globalPostVars(jelem,npt,ntens+1:2*ntens) = stran(1:ntens,1)
+
+      RETURN
+
+      END SUBROUTINE umatElastic
 
 ************************************************************************
 ************************************************************************
@@ -577,9 +577,9 @@
      1 NUVARM,NOEL,NPT,LAYER,KSPT,KSTEP,KINC,NDI,NSHR,COORD,
      2 JMAC,JMATYP,MATLAYO,LACCFLA)
 
-			!  this subroutine is used to transfer postVars from the UEL
-			!  onto the dummy mesh for viewing. Note that an offset of
-			!  elemOffset is used between the real mesh and the dummy mesh.
+      !  this subroutine is used to transfer postVars from the UEL
+      !  onto the dummy mesh for viewing. Note that an offset of
+      !  elemOffset is used between the real mesh and the dummy mesh.
 
       USE PARAMETERS
 
@@ -589,10 +589,10 @@
       DIMENSION ARRAY(15),JARRAY(15),JMAC(*),JMATYP(*),COORD(*)
 
       integer:: i
-      
+
 !     the dimensions of the variables FLGRAY, ARRAY and JARRAY
 !     must be set equal to or greater than 15.
-       
+
       if (noel .gt. elemOffset) then
         do i = 1,nuvarm
           uvar(i) = globalPostVars(noel-elemOffset,npt,i)
@@ -632,7 +632,7 @@
       integer:: nNode, nInt
       real*8 :: x1D(4), w1D(4)
       real*8 :: w(nInt), xi(nInt,2)
-      
+
       w  = zero
       xi = zero
 
@@ -648,7 +648,7 @@
           w(1:3) = sixth
 
           xi(1,1) = half
-          xi(1,2) = half 
+          xi(1,2) = half
           xi(2,1) = zero
           xi(2,2) = half
           xi(3,1) = half
@@ -693,11 +693,11 @@
           xi(7,1) = xi(5,2)
           xi(7,2) = xi(5,2)
 
-        else 
+        else
           write(*,*) 'wrong gauss points for tri element', nInt
           call xit
         endif
-                  
+
       ! plane quad elements
       elseif((nNode.eq.4).or.(nNode.eq.8)) then
 
@@ -714,7 +714,7 @@
           w(1:4) = one
 
           x1D(1) = dsqrt(third)
-          
+
           ! gauss pt locations in master element
           xi(1,1) = -x1D(1)
           xi(1,2) = -x1D(1)
@@ -740,7 +740,7 @@
           w(7) = w1D(1)
           w(8) = w1D(2)
           w(9) = w1D(1)
-          
+
           x1D(1) = dsqrt(three/five)
           ! Gauss pt locations in master element
           xi(1,1) = -x1D(1)
@@ -775,113 +775,113 @@
 
       RETURN
       END SUBROUTINE gaussQuadrtr2
-      
+
 ************************************************************************
 
       SUBROUTINE gaussQuadrtr3(nNode,nInt,w,xi)
 
-!     this subroutines returns the weights and 
+!     this subroutines returns the weights and
 !     gauss point coordinate of 3D Lagrangian elements
 !     currently supports: nInt = 1, 4, 5 (tet elements)
-!                         nInt = 1, 8, 27, 64 (hex8 elements) 
+!                         nInt = 1, 8, 27, 64 (hex8 elements)
 
       USE PARAMETERS
 
       IMPLICIT NONE
 
       integer:: nNode, nInt
-      integer:: i, j, k, n 
+      integer:: i, j, k, n
       real*8 :: x1D(4), w1D(4)
       real*8 :: w(nInt), xi(nInt,3)
-      
+
       w  = zero
       xi = zero
 
       ! 4 node or 10 node tetrahedral elements
       if((nNode.eq.4).or.(nNode.eq.10)) then
 
-				if (nInt.eq.1) then
-						w(1) = sixth
-						xi(1:3,1) = fourth
+        if (nInt.eq.1) then
+            w(1) = sixth
+            xi(1:3,1) = fourth
 
-				else if (nInt.eq.4) then
-					w(1:4) = one/24.d0
+        else if (nInt.eq.4) then
+          w(1:4) = one/24.d0
 
-					xi(1,1) = 0.58541020d0
-					xi(2,1) = 0.13819660d0
-					xi(3,1) = xi(2,1)
-					xi(1,2) = xi(2,1)
-					xi(2,2) = xi(1,1)
-					xi(3,2) = xi(2,1)
-					xi(1,3) = xi(2,1)
-					xi(2,3) = xi(2,1)
-					xi(3,3) = xi(1,1)
-					xi(4,1) = xi(2,1)
-					xi(4,2) = xi(2,1)
-					xi(4,3) = xi(2,1)
-							
-				else if (nInt.eq.5) then
-					w(1) = -four/30.d0
-					w(2:5) = three/40.d0
-					xi(1,1) = fourth
-					xi(1,2) = fourth
-					xi(1,3) = fourth
-					xi(2,1) = half
-					xi(2,2) = sixth
-					xi(2,3) = sixth
-					xi(3,1) = sixth
-					xi(3,2) = half
-					xi(3,3) = sixth
-					xi(4,1) = sixth
-					xi(4,2) = sixth
-					xi(4,3) = half
-					xi(5,1) = sixth
-					xi(5,2) = sixth
-					xi(5,3) = sixth
-					
-				else
-					write(*,*) 'wrong gauss points for tet element', nInt
-					call xit
-				endif
-                        
+          xi(1,1) = 0.58541020d0
+          xi(2,1) = 0.13819660d0
+          xi(3,1) = xi(2,1)
+          xi(1,2) = xi(2,1)
+          xi(2,2) = xi(1,1)
+          xi(3,2) = xi(2,1)
+          xi(1,3) = xi(2,1)
+          xi(2,3) = xi(2,1)
+          xi(3,3) = xi(1,1)
+          xi(4,1) = xi(2,1)
+          xi(4,2) = xi(2,1)
+          xi(4,3) = xi(2,1)
 
-      ! 8 node or 20 node hexahedral elements    
+        else if (nInt.eq.5) then
+          w(1) = -four/30.d0
+          w(2:5) = three/40.d0
+          xi(1,1) = fourth
+          xi(1,2) = fourth
+          xi(1,3) = fourth
+          xi(2,1) = half
+          xi(2,2) = sixth
+          xi(2,3) = sixth
+          xi(3,1) = sixth
+          xi(3,2) = half
+          xi(3,3) = sixth
+          xi(4,1) = sixth
+          xi(4,2) = sixth
+          xi(4,3) = half
+          xi(5,1) = sixth
+          xi(5,2) = sixth
+          xi(5,3) = sixth
+
+        else
+          write(*,*) 'wrong gauss points for tet element', nInt
+          call xit
+        endif
+
+
+      ! 8 node or 20 node hexahedral elements
       elseif ((nNode.eq.8).or.(nNode.eq.20)) then
 
-				! reduced integration scheme for hex8
-				if (nInt.eq.1) then
+        ! reduced integration scheme for hex8
+        if (nInt.eq.1) then
 
-					! gauss weights
-					w(1) = eight
-					! Gauss pt locations in master element
-					xi(1,1:3) = zero
+          ! gauss weights
+          w(1) = eight
+          ! Gauss pt locations in master element
+          xi(1,1:3) = zero
 
-				! full integration scheme for hex8
-				elseif(nInt.eq.8) then
+        ! full integration scheme for hex8
+        elseif(nInt.eq.8) then
 
           ! weights
-					w(1:8) = one
+          w(1:8) = one
 
-					x1D(1) = -dsqrt(third)
-					x1D(2) = dsqrt(third)
-					! Gauss pt locations in master element
-					do k = 1,2
-						do j = 1,2
-							do i = 1,2
-								n = 4*(k-1) + 2*(j-1) + i
-								xi(n,1) = x1D(i)
-								xi(n,2) = x1D(j)
-								xi(n,3) = x1D(k)
-							end do
-						end do
-					end do
+          x1D(1) = -dsqrt(third)
+          x1D(2) = dsqrt(third)
+          ! Gauss pt locations in master element
+          do k = 1,2
+            do j = 1,2
+              do i = 1,2
+                n = 4*(k-1) + 2*(j-1) + i
+                xi(n,1) = x1D(i)
+                xi(n,2) = x1D(j)
+                xi(n,3) = x1D(k)
+              end do
+            end do
+          end do
 
-				elseif(nInt.eq.27) then
+        elseif(nInt.eq.27) then
 
           w1D(1) = five/nine
           w1D(2) = eight/nine
           w1D(3) = w1D(1)
-          
+
           x1D(1) = -dsqrt(0.6d0)
           x1D(2) = zero
           x1D(3) = dsqrt(0.6d0)
@@ -897,10 +897,10 @@
             end do
           end do
 
-				else
+        else
           write(*,*) 'wrong gauss points for hex element', nInt
           call xit
-				endif
+        endif
 
       else
         write(*,*) 'element is not supported for 3D analysis', nNode
@@ -913,14 +913,14 @@
 ************************************************************************
 
       SUBROUTINE interpFunc2(nNode,nInt,intPt,xi_int,Nxi,dNdxi)
-      
+
 !     this subroutine calculates shape function of 2D elements at gauss pts
 !     available 2D elements are: 3 node tri, 6 node tri, 4 node quad, 8 node quad
 !
 !     Nxi(i)          = shape function of node i at the intpt.
 !     dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
-      USE PARAMETERS 
+      USE PARAMETERS
 
       integer:: nNode, nInt, intpt
 
@@ -958,18 +958,18 @@
             dNdxi(3, 1) = -one
             dNdxi(3, 2) = -one
 
-            !              A eta (=xi_2)
-            !              |
-            !              3
-            !              |\
-            !              | \
-            !              |  \
-            !              |   5
-            !              6    \
-            !              |     \
-            !              |      \
-            !              |       \
-            !              1---4----2--> xi (=xi_1)
+      !              A eta (=xi_2)
+      !              |
+      !              3
+      !              |\
+      !              | \
+      !              |  \
+      !              |   5
+      !              6    \
+      !              |     \
+      !              |      \
+      !              |       \
+      !              1---4----2--> xi (=xi_1)
 
       elseif (nNode.eq.6) then
         ! quadratic shape functions for tri element
@@ -1000,9 +1000,9 @@
         !   |           |          |
         !   |           |          |
         !   |           |          O--------- xi
-        !   |           |          
+        !   |           |
         !   |           |        origin at center
-        !   1-----------2        
+        !   1-----------2
 
       elseif (nNode.eq.4) then
         ! bilinear shape functions for quad element
@@ -1021,16 +1021,16 @@
         dNdxi(4,1) = -fourth*(one + eta)
         dNdxi(4,2) = fourth*(one - xi)
 
-                    !         A eta
-                    !         |
-                    !         |
-                    !   4-----7-----3
-                    !   |     |     |
-                    !   |     |     |
-                    !   8     ------6---> xi
-                    !   |           |
-                    !   |           |
-                    !   1-----5-----2
+              !         A eta
+              !         |
+              !         |
+              !   4-----7-----3
+              !   |     |     |
+              !   |     |     |
+              !   8     ------6---> xi
+              !   |           |
+              !   |           |
+              !   1-----5-----2
 
       elseif (nNode.eq.8) then
         ! quadratic shape functions for quad element
@@ -1102,67 +1102,67 @@
       if (nNode.eq.4) then
       ! linear shape functions for tet element
 
-				Nxi(1) = xi
-				Nxi(2) = eta
-				Nxi(3) = zeta
-				Nxi(4) = one-xi-eta-zeta
+        Nxi(1) = xi
+        Nxi(2) = eta
+        Nxi(3) = zeta
+        Nxi(4) = one-xi-eta-zeta
 
-				dNdxi(1,1) = one
-				dNdxi(2,2) = one
-				dNdxi(3,3) = one
-				dNdxi(4,1) = -one
-				dNdxi(4,2) = -one
-				dNdxi(4,3) = -one
+        dNdxi(1,1) = one
+        dNdxi(2,2) = one
+        dNdxi(3,3) = one
+        dNdxi(4,1) = -one
+        dNdxi(4,2) = -one
+        dNdxi(4,3) = -one
 
       elseif (nNode.eq.10) then
         ! quadratic shape function of tet elements
-				lam = one-xi-eta-zeta
-				Nxi(1) = (two*xi-one)*xi
-				Nxi(2) = (two*eta-one)*eta
-				Nxi(3) = (two*zeta-one)*zeta
-				Nxi(4) = (two*lam-one)*lam
-				Nxi(5) = four*xi*eta
-				Nxi(6) = four*eta*zeta
-				Nxi(7) = four*zeta*xi
-				Nxi(8) = four*xi*lam
-				Nxi(9) = four*eta*lam
-				Nxi(10) = four*zeta*lam
+        lam = one-xi-eta-zeta
+        Nxi(1) = (two*xi-one)*xi
+        Nxi(2) = (two*eta-one)*eta
+        Nxi(3) = (two*zeta-one)*zeta
+        Nxi(4) = (two*lam-one)*lam
+        Nxi(5) = four*xi*eta
+        Nxi(6) = four*eta*zeta
+        Nxi(7) = four*zeta*xi
+        Nxi(8) = four*xi*lam
+        Nxi(9) = four*eta*lam
+        Nxi(10) = four*zeta*lam
 
-				dNdxi(1,1) = (four*xi-one)
-				dNdxi(2,2) = (four*eta-one)
-				dNdxi(3,3) = (four*zeta-one)
-				dNdxi(4,1) = -(four*lam-one)
-				dNdxi(4,2) = -(four*lam-one)
-				dNdxi(4,3) = -(four*lam-one)
-				dNdxi(5,1) = four*eta
-				dNdxi(5,2) = four*xi
-				dNdxi(6,2) = four*zeta
-				dNdxi(6,3) = four*eta
-				dNdxi(7,1) = four*zeta
-				dNdxi(7,3) = four*xi
-				dNdxi(8,1) = four*(lam-xi)
-				dNdxi(8,2) = -four*xi
-				dNdxi(8,3) = -four*xi
-				dNdxi(9,1) = -four*eta
-				dNdxi(9,2) = four*(lam-eta)
-				dNdxi(9,3) = -four*eta
-				dNdxi(10,1) = -four*zeta*lam
-				dNdxi(10,2) = -four*zeta
-				dNdxi(10,3) = four*(lam-zeta)
+        dNdxi(1,1) = (four*xi-one)
+        dNdxi(2,2) = (four*eta-one)
+        dNdxi(3,3) = (four*zeta-one)
+        dNdxi(4,1) = -(four*lam-one)
+        dNdxi(4,2) = -(four*lam-one)
+        dNdxi(4,3) = -(four*lam-one)
+        dNdxi(5,1) = four*eta
+        dNdxi(5,2) = four*xi
+        dNdxi(6,2) = four*zeta
+        dNdxi(6,3) = four*eta
+        dNdxi(7,1) = four*zeta
+        dNdxi(7,3) = four*xi
+        dNdxi(8,1) = four*(lam-xi)
+        dNdxi(8,2) = -four*xi
+        dNdxi(8,3) = -four*xi
+        dNdxi(9,1) = -four*eta
+        dNdxi(9,2) = four*(lam-eta)
+        dNdxi(9,3) = -four*eta
+        dNdxi(10,1) = -four*zeta*lam
+        dNdxi(10,2) = -four*zeta
+        dNdxi(10,3) = four*(lam-zeta)
 
-							!      8-----------7
-							!     /|          /|       
-							!    / |         / |      zeta
-							!   5-----------6  |       |   eta
-							!   |  |        |  |       |   /
-							!   |  |        |  |       |  /
-							!   |  4--------|--3       | /
-							!   | /         | /        |/
-							!   |/          |/         O--------- xi
-							!   1-----------2        origin at cube center
+          !      8-----------7
+          !     /|          /|
+          !    / |         / |      zeta
+          !   5-----------6  |       |   eta
+          !   |  |        |  |       |   /
+          !   |  |        |  |       |  /
+          !   |  4--------|--3       | /
+          !   | /         | /        |/
+          !   |/          |/         O--------- xi
+          !   1-----------2        origin at cube center
 
       elseif(nNode.eq.8) then
-				! trilinear shape functions
+        ! trilinear shape functions
         Nxi(1) = eighth*(one - xi)*(one - eta)*(one - zeta)
         Nxi(2) = eighth*(one + xi)*(one - eta)*(one - zeta)
         Nxi(3) = eighth*(one + xi)*(one + eta)*(one - zeta)
@@ -1197,22 +1197,22 @@
         dNdxi(8,1) = -eighth*(one + eta)*(one + zeta)
         dNdxi(8,2) = eighth*(one - xi)*(one + zeta)
         dNdxi(8,3) = eighth*(one - xi)*(one + eta)
-              !
-              !       8-----15----- 7
-        			!      /|            /|
-							!    16 |          14 |      
-							!    /  20        /   |     zeta
-							!   5-----13-----6   19      |     eta
-							!   |   |        |    |      |    /
-							!   |   |        |    |      |   /
-							!   17  4-----11-|----3      |  /
-              !   |  /         18  /       | /
-							!   | 12         | 10        |/
-							!   |/           |/          O--------- xi
-							!   1-----9------2        origin at cube center
-              !
-              ! mid-side nodes are not properly illustrated
-	    elseif (nNode.eq.20) then
+          !
+          !       8-----15----- 7
+          !      /|            /|
+          !    16 |          14 |
+          !    /  20        /   |     zeta
+          !   5-----13-----6   19      |     eta
+          !   |   |        |    |      |    /
+          !   |   |        |    |      |   /
+          !   17  4-----11-|----3      |  /
+          !   |  /         18  /       | /
+          !   | 12         | 10        |/
+          !   |/           |/          O--------- xi
+          !   1-----9------2        origin at cube center
+          !
+          ! mid-side nodes are not properly illustrated
+      elseif (nNode.eq.20) then
         Nxi(1) = (one-xi)*(one-eta)*(one-zeta)*(-xi-eta-zeta-two)/eight
         Nxi(2) = (one+xi)*(one-eta)*(one-zeta)*(xi-eta-zeta-two)/eight
         Nxi(3) = (one+xi)*(one+eta)*(one-zeta)*(xi+eta-zeta-two)/eight
@@ -1233,8 +1233,8 @@
         Nxi(18) = (one+xi)*(one-eta)*(one-zeta**two)/four
         Nxi(19) = (one+xi)*(one+eta)*(one-zeta**two)/four
         Nxi(20) = (one-xi)*(one+eta)*(one-zeta**two)/four
-      
-      
+
+
         dNdxi(1,1) = (-(one-eta)*(one-zeta)*(-xi-eta-zeta-two)-
      &                (one-xi)*(one-eta)*(one-zeta))/eight
         dNdxi(1,2) = (-(one-xi)*(one-zeta)*(-xi-eta-zeta-two)-
@@ -1320,8 +1320,8 @@
         dNdxi(20,2) = (one-xi)*(one-zeta**two)/four
         dNdxi(20,3) = -zeta*(one-xi)*(one+eta)/two
       else
-				write(*,*) 'element is not supported for 3D analysis'
-				call xit
+        write(*,*) 'element is not supported for 3D analysis'
+        call xit
       endif
 
       RETURN
@@ -1331,9 +1331,9 @@
 
       SUBROUTINE faceNodes(nDim,nNode,face,list,nFaceNodes)
 
-      ! this subroutine RETURNs the list of nodes on an 
+      ! this subroutine RETURNs the list of nodes on an
       ! element face for standard 2D and 3D Lagrangian elements
-            
+
       implicit none
 
       integer, intent (in) :: nDim, nNode, face
@@ -1343,72 +1343,72 @@
       integer :: list3(3), list4(4)
 
       if (nDim.eq.2) then
-				list3(1:3) = [2,3,1]
-				list4(1:4) = [2,3,4,1]
+        list3(1:3) = [2,3,1]
+        list4(1:4) = [2,3,4,1]
 
-				if (nNode.eq.3) then
-					nFaceNodes = 2
-					list(1) = face
-					list(2) = list3(face)
-				else if (nNode.eq.4) then
-					nFaceNodes = 2
-					list(1) = face
-					list(2) = list4(face)
-				else if (nNode.eq.6) then
-					nFaceNodes = 3
-					list(1) = face
-					list(2) = list3(face)
-					list(3) = face+3
-				else if (nNode.eq.8) then
-					nFaceNodes = 3
-					list(1) = face
-					list(2) = list4(face)
-					list(3) = face+4
-				endif
+        if (nNode.eq.3) then
+          nFaceNodes = 2
+          list(1) = face
+          list(2) = list3(face)
+        else if (nNode.eq.4) then
+          nFaceNodes = 2
+          list(1) = face
+          list(2) = list4(face)
+        else if (nNode.eq.6) then
+          nFaceNodes = 3
+          list(1) = face
+          list(2) = list3(face)
+          list(3) = face+3
+        else if (nNode.eq.8) then
+          nFaceNodes = 3
+          list(1) = face
+          list(2) = list4(face)
+          list(3) = face+4
+        endif
 
       else if (nDim.eq.3) then
 
-				if (nNode.eq.4) then
-					nFaceNodes = 3
-					if (face.eq.1) list(1:3) = [1,2,3]
-					if (face.eq.2) list(1:3) = [1,4,2]
-					if (face.eq.3) list(1:3) = [2,4,3]
-					if (face.eq.4) list(1:3) = [3,4,1]
-				else if (nNode .eq.6) then
-					nFaceNodes = 3
-					if (face.eq.1) list(1:3) = [1,2,3]
-					if (face.eq.2) list(1:3) = [6,5,4]
-					if (face.eq.3) list(1:4) = [1,2,5,4]
-					if (face.eq.4) list(1:4) = [2,3,6,5]
-					if (face.eq.5) list(1:4) = [4,6,3,1]
-					if (face>2) nFaceNodes = 4
-				else if (nNode.eq.10) then
-					nFaceNodes = 6
-					if (face.eq.1) list(1:6) = [1,2,3,5,6,7]
-					if (face.eq.2) list(1:6) = [1,4,2,8,9,5]
-					if (face.eq.3) list(1:6) = [2,4,3,9,10,6]
-					if (face.eq.4) list(1:6) = [3,4,1,10,8,7]
-				else if (nNode.eq.8) then
-					nFaceNodes = 4
-					if (face.eq.1) list(1:4) = [1,2,3,4]
-					if (face.eq.2) list(1:4) = [5,8,7,6]
-					if (face.eq.3) list(1:4) = [1,5,6,2]
-					if (face.eq.4) list(1:4) = [2,6,7,3]
-					if (face.eq.5) list(1:4) = [3,7,8,4]
-					if (face.eq.6) list(1:4) = [4,8,5,1]
-				else  if (nNode.eq.20) then
-					nFaceNodes = 8
-					if (face.eq.1) list(1:8) = [1,2,3,4,9,10,11,12]
-					if (face.eq.2) list(1:8) = [5,8,7,6,16,15,14,13]
-					if (face.eq.3) list(1:8) = [1,5,6,2,17,13,18,9]
-					if (face.eq.4) list(1:8) = [2,6,7,3,18,14,19,10]
-					if (face.eq.5) list(1:8) = [3,7,8,4,19,15,6,11]
-					if (face.eq.6) list(1:8) = [4,8,5,1,20,16,17,12]
-				endif
+        if (nNode.eq.4) then
+          nFaceNodes = 3
+          if (face.eq.1) list(1:3) = [1,2,3]
+          if (face.eq.2) list(1:3) = [1,4,2]
+          if (face.eq.3) list(1:3) = [2,4,3]
+          if (face.eq.4) list(1:3) = [3,4,1]
+        else if (nNode .eq.6) then
+          nFaceNodes = 3
+          if (face.eq.1) list(1:3) = [1,2,3]
+          if (face.eq.2) list(1:3) = [6,5,4]
+          if (face.eq.3) list(1:4) = [1,2,5,4]
+          if (face.eq.4) list(1:4) = [2,3,6,5]
+          if (face.eq.5) list(1:4) = [4,6,3,1]
+          if (face>2) nFaceNodes = 4
+        else if (nNode.eq.10) then
+          nFaceNodes = 6
+          if (face.eq.1) list(1:6) = [1,2,3,5,6,7]
+          if (face.eq.2) list(1:6) = [1,4,2,8,9,5]
+          if (face.eq.3) list(1:6) = [2,4,3,9,10,6]
+          if (face.eq.4) list(1:6) = [3,4,1,10,8,7]
+        else if (nNode.eq.8) then
+          nFaceNodes = 4
+          if (face.eq.1) list(1:4) = [1,2,3,4]
+          if (face.eq.2) list(1:4) = [5,8,7,6]
+          if (face.eq.3) list(1:4) = [1,5,6,2]
+          if (face.eq.4) list(1:4) = [2,6,7,3]
+          if (face.eq.5) list(1:4) = [3,7,8,4]
+          if (face.eq.6) list(1:4) = [4,8,5,1]
+        else  if (nNode.eq.20) then
+          nFaceNodes = 8
+          if (face.eq.1) list(1:8) = [1,2,3,4,9,10,11,12]
+          if (face.eq.2) list(1:8) = [5,8,7,6,16,15,14,13]
+          if (face.eq.3) list(1:8) = [1,5,6,2,17,13,18,9]
+          if (face.eq.4) list(1:8) = [2,6,7,3,18,14,19,10]
+          if (face.eq.5) list(1:8) = [3,7,8,4,19,15,6,11]
+          if (face.eq.6) list(1:8) = [4,8,5,1,20,16,17,12]
+        endif
       endif
 
       RETURN
-      
+
       END SUBROUTINE faceNodes
 
 ************************************************************************
@@ -1417,16 +1417,16 @@
 !
 !     SUBROUTINE to create identity matrix of any dimention
 !     SUBROTINE to calculate determinant of matrix
-!     SUBROUTINE to calculate direct inverse of 2x2 and 3x3 matrix 
+!     SUBROUTINE to calculate direct inverse of 2x2 and 3x3 matrix
 !     SUBROTUINE to map symmetric tensor to a vector
-!     SUBROUTINE to map 4th order tensor to 2D Voigt matrix     
+!     SUBROUTINE to map 4th order tensor to 2D Voigt matrix
 ************************************************************************
 
       SUBROUTINE crossProduct(a,b,c)
 !     computes the cross product of two 3 dimensional vectors
 
       IMPLICIT NONE
-      
+
       real*8 :: a(3), b(3), c(3)
 
       c(1) = a(2)*b(3)-a(3)*b(2)
@@ -1439,10 +1439,10 @@
 
       SUBROUTINE traceMat(A,trA,nDim)
 !     this subroutine calculates the trace of a square matrix
-      
+
       USE PARAMETERS
       IMPLICIT NONE
-      
+
       integer:: nDim, i
       real*8 :: A(nDim,nDim), trA
 
@@ -1451,7 +1451,7 @@
       do i = 1, nDim
         trA = trA + A(i,i)
       enddo
-      
+
       RETURN
       END SUBROUTINE traceMat
 
@@ -1459,9 +1459,9 @@
 
       SUBROUTINE detMat2(A,detA)
 !     this subroutine calculates the determinant of a 2x2 or 3x3 matrix [A]
-      
+
       IMPLICIT NONE
-      
+
       real*8 :: A(2,2), detA
 
       detA = A(1,1)*A(2,2) - A(1,2)*A(2,1)
@@ -1472,12 +1472,12 @@
 
       SUBROUTINE detMat3(A,detA)
 !     this subroutine calculates the determinant of a 2x2 or 3x3 matrix [A]
-      
+
       IMPLICIT NONE
 
       real*8 :: A(3,3), detA
-      
-			detA = A(1,1)*A(2,2)*A(3,3) 
+
+      detA = A(1,1)*A(2,2)*A(3,3)
      &     + A(1,2)*A(2,3)*A(3,1)
      &     + A(1,3)*A(2,1)*A(3,2)
      &     - A(3,1)*A(2,2)*A(1,3)
@@ -1504,18 +1504,18 @@
       call detMat2(A,detA)
 
       if (detA .le. zero) then
-					write(*,*) 'WARNING: subroutine inverseMat2:'
-					write(*,*) 'WARNING: det of mat= ', detA
-					istat = 0
-					RETURN
+          write(*,*) 'WARNING: subroutine inverseMat2:'
+          write(*,*) 'WARNING: det of mat= ', detA
+          istat = 0
+          RETURN
       end if
 
       detAinv = one/detA
 
       Ainv(1,1) =  detAinv*A(2,2)
-			Ainv(1,2) = -detAinv*A(1,2)
-			Ainv(2,1) = -detAinv*A(2,1)
-			Ainv(2,2) =  detAinv*A(1,1)
+      Ainv(1,2) = -detAinv*A(1,2)
+      Ainv(2,1) = -detAinv*A(2,1)
+      Ainv(2,2) =  detAinv*A(1,1)
 
       RETURN
 
@@ -1537,31 +1537,31 @@
       call detMat3(A,detA)
 
       if (detA .le. zero) then
-					write(*,*) 'WARNING: subroutine inverseMat3:'
-					write(*,*) 'WARNING: det of mat= ', detA
-					istat = 0
-					RETURN
+          write(*,*) 'WARNING: subroutine inverseMat3:'
+          write(*,*) 'WARNING: det of mat= ', detA
+          istat = 0
+          RETURN
       end if
 
       detAinv = one/detA
 
       Ainv(1,1) = detAinv*(A(2,2)*A(3,3)-A(3,2)*A(2,3))
-			Ainv(1,2) = detAinv*(A(3,2)*A(1,3)-A(1,2)*A(3,3))
-			Ainv(1,3) = detAinv*(A(1,2)*A(2,3)-A(2,2)*A(1,3))
-			Ainv(2,1) = detAinv*(A(3,1)*A(2,3)-A(2,1)*A(3,3))
-			Ainv(2,2) = detAinv*(A(1,1)*A(3,3)-A(3,1)*A(1,3))
-			Ainv(2,3) = detAinv*(A(2,1)*A(1,3)-A(1,1)*A(2,3))
-			Ainv(3,1) = detAinv*(A(2,1)*A(3,2)-A(3,1)*A(2,2))
-			Ainv(3,2) = detAinv*(A(3,1)*A(1,2)-A(1,1)*A(3,2))
-			Ainv(3,3) = detAinv*(A(1,1)*A(2,2)-A(2,1)*A(1,2))
+      Ainv(1,2) = detAinv*(A(3,2)*A(1,3)-A(1,2)*A(3,3))
+      Ainv(1,3) = detAinv*(A(1,2)*A(2,3)-A(2,2)*A(1,3))
+      Ainv(2,1) = detAinv*(A(3,1)*A(2,3)-A(2,1)*A(3,3))
+      Ainv(2,2) = detAinv*(A(1,1)*A(3,3)-A(3,1)*A(1,3))
+      Ainv(2,3) = detAinv*(A(2,1)*A(1,3)-A(1,1)*A(2,3))
+      Ainv(3,1) = detAinv*(A(2,1)*A(3,2)-A(3,1)*A(2,2))
+      Ainv(3,2) = detAinv*(A(3,1)*A(1,2)-A(1,1)*A(3,2))
+      Ainv(3,3) = detAinv*(A(1,1)*A(2,2)-A(2,1)*A(1,2))
 
       RETURN
       END SUBROUTINE inverseMat3
 ************************************************************************
 
-      subroutine inverseMat(A,Ainv,n)  
-			! this subroutine computes the inverse of an arbitrary 
-			! square matrix (nxn) by LU decomposition approach
+      subroutine inverseMat(A,Ainv,n)
+      ! this subroutine computes the inverse of an arbitrary
+      ! square matrix (nxn) by LU decomposition approach
 
       USE PARAMETERS
 
@@ -1581,39 +1581,39 @@
       b = zero
 
       do k=1, n-1
-				do i=k+1,n
-					coeff=a(i,k)/a(k,k)
-					L(i,k) = coeff
-					A(i,k+1:n) = A(i,k+1:n)-coeff*A(k,k+1:n)
-				end do
+        do i=k+1,n
+          coeff=a(i,k)/a(k,k)
+          L(i,k) = coeff
+          A(i,k+1:n) = A(i,k+1:n)-coeff*A(k,k+1:n)
+        end do
       end do
 
       forall (i=1:n)  L(i,i) = one
       forall (j=1:n) U(1:j,j) = A(1:j,j)
 
       do k=1,n
-				b(k)=one
-				d(1) = b(1)
-				do i=2,n
+        b(k)=one
+        d(1) = b(1)
+        do i=2,n
           d(i)=b(i)
           d(i) = d(i) - dot_product(L(i,1:i-1),d(1:i-1))
-				end do
+        end do
 
-				x(n)=d(n)/U(n,n)
-				do i = n-1,1,-1
+        x(n)=d(n)/U(n,n)
+        do i = n-1,1,-1
           x(i) = d(i)
           x(i)=x(i)-dot_product(U(i,i+1:n),x(i+1:n))
           x(i) = x(i)/U(i,i)
-				end do
-				Ainv(1:n,k) = x(1:n)
-				b(k)=zero
+        end do
+        Ainv(1:n,k) = x(1:n)
+        b(k)=zero
       end do
 
       END SUBROUTINE inverseMat
 
 ************************************************************************
-			
-      subroutine eigenSym3(A,eigenvalues,eigenvectors)     
+
+      subroutine eigenSym3(A,eigenvalues,eigenvectors)
       ! this subroutine computes eigenvals and eigenvectors of symmetric 3x3 matrix
 
       USE PARAMETERS
@@ -1634,33 +1634,33 @@
       tol = eps*(A(1,1)*A(1,1) + A(2,2)*A(2,2) + A(3,3)*A(3,3) + p1)
 
       if (p1 == zero) then
-				eigenvalues(1) = A(1,1)
-				eigenvalues(2) = A(2,2)
-				eigenvalues(3) = A(3,3)
+        eigenvalues(1) = A(1,1)
+        eigenvalues(2) = A(2,2)
+        eigenvalues(3) = A(3,3)
 
-				eigenvectors(1,1) = one
-				eigenvectors(2,2) = one
-				eigenvectors(3,3) = one
+        eigenvectors(1,1) = one
+        eigenvectors(2,2) = one
+        eigenvectors(3,3) = one
 
       else
-					q = (A(1,1)+A(2,2)+A(3,3))/three
-					p2 = (A(1,1) - q)*(A(1,1)-q) + (A(2,2) - q)*(A(2,2) - q)
+          q = (A(1,1)+A(2,2)+A(3,3))/three
+          p2 = (A(1,1) - q)*(A(1,1)-q) + (A(2,2) - q)*(A(2,2) - q)
      &         + (A(3,3) - q)*(A(3,3) - q) + two * p1
-					p = dsqrt(p2 / six)
-					B = (one / p) * (A - q * ID3)      
-					r =   half*( B(1,1)*B(2,2)*B(3,3)  
-     &                - B(1,1)*B(2,3)*B(3,2)  
-     &                - B(1,2)*B(2,1)*B(3,3)  
-     &                + B(1,2)*B(2,3)*B(3,1)  
-     &                + B(1,3)*B(2,1)*B(3,2)  
+          p = dsqrt(p2 / six)
+          B = (one / p) * (A - q * ID3)
+          r =   half*( B(1,1)*B(2,2)*B(3,3)
+     &                - B(1,1)*B(2,3)*B(3,2)
+     &                - B(1,2)*B(2,1)*B(3,3)
+     &                + B(1,2)*B(2,3)*B(3,1)
+     &                + B(1,3)*B(2,1)*B(3,2)
      &                - B(1,3)*B(2,2)*B(3,1) )
 
             if (r < -one) then
-								phi = pi / three
+                phi = pi / three
             else if (r > one) then
-								phi = zero
+                phi = zero
             else
-								phi = dacos(r) / three
+                phi = dacos(r) / three
             end if
 
             ! the eigenvalues satisfy eig3 <= eig2 <= eig1
@@ -1669,36 +1669,36 @@
             eigenvalues(2) = three*q - eigenvalues(1) - eigenvalues(3)
 
             do i = 1,3
-							B = A - eigenvalues(i)*ID3
-							C = A - eigenvalues(mod(i,3)+1)*ID3
-							D = matmul(B,C)
-							eigenvectors(1:3,mod(i+1,3)+1) = matmul(D,(/one,one,one/))
+              B = A - eigenvalues(i)*ID3
+              C = A - eigenvalues(mod(i,3)+1)*ID3
+              D = matmul(B,C)
+              eigenvectors(1:3,mod(i+1,3)+1) = matmul(D,(/one,one,one/))
             end do
 
             do i = 1,3
-							evnorm = dsqrt(dot_product(eigenvectors(1:3,i),
+              evnorm = dsqrt(dot_product(eigenvectors(1:3,i),
      &                 eigenvectors(1:3,i)))
-							if (evnorm>tol) then
-									eigenvectors(1:3,i) = eigenvectors(1:3,i)/evnorm
-							else
-									call crossProduct(
+              if (evnorm>tol) then
+                  eigenvectors(1:3,i) = eigenvectors(1:3,i)/evnorm
+              else
+                  call crossProduct(
      &            eigenvectors(1:3,mod(i,3)+1),
-     &            eigenvectors(1:3,mod(i+1,3)+1), 
+     &            eigenvectors(1:3,mod(i+1,3)+1),
      &            eigenvectors(1:3,i))
 
                   evnorm = dsqrt(dot_product(eigenvectors(1:3,i),
      &                        eigenvectors(1:3,i)))
 
                   eigenvectors(1:3,i) = eigenvectors(1:3,i)/evnorm
-							endif
+              endif
             end do
       end if
 
       end subroutine eigenSym3
 
 ************************************************************************
-			
-      SUBROUTINE sqrtMat3(A, B)                                     
+
+      SUBROUTINE sqrtMat3(A, B)
       ! this subroutines computes square root of a symmetric 3x3 matrix
 
       USE PARAMETERS
@@ -1723,11 +1723,11 @@
       END SUBROUTINE sqrtMat3
 
 ************************************************************************
-			
-      SUBROUTINE polarDecomp3(A,V,U,R)                
-			! this subroutine compute left and right polar decompositions
-			! of a 3x3 matrix A (used for deformation gradient)
-    
+
+      SUBROUTINE polarDecomp3(A,V,U,R)
+      ! this subroutine compute left and right polar decompositions
+      ! of a 3x3 matrix A (used for deformation gradient)
+
       USE PARAMETERS
 
       IMPLICIT NONE
@@ -1741,10 +1741,10 @@
 
       R = matmul(A,transpose(A))                      ! R is just temporary variable here
       call sqrtMat3(R,V)                               ! V= sqrt(A*A^T)
-      call inverseMat3(V,Vinv,detV,istat)         
+      call inverseMat3(V,Vinv,detV,istat)
       R = matmul(Vinv,A)                              ! R = V^-1*A
       U = matmul(transpose(R),A)                      ! U = R^T*A
-    
+
       end subroutine polarDecomp3
 ************************************************************************
 
@@ -1752,14 +1752,14 @@
       ! this subroutine augemnts a 3x1 (plane) or 4x1 (axisymmetric)
       ! array to a 6x1 Voigt array of 3D dimensional case
 
-      USE PARAMETERS 
+      USE PARAMETERS
 
       IMPLICIT NONE
-      
+
       integer:: ntens
       real*8 :: vect2D(ntens,1), vect3D(nSymm,1)
-      
-    
+
+
       vect3D = zero
 
       vect3D(1,1) = vect2D(1,1)
@@ -1774,7 +1774,7 @@
         vect3D = vect2D
       endif
 
-      RETURN 
+      RETURN
       END SUBROUTINE voigtAugment
 
 ************************************************************************
@@ -1783,13 +1783,13 @@
       ! this subroutine truncates a 6x1 Voigt array
       ! to a 3x1 (plane) or 4x1 (axisymmetry) Voigt array
 
-      USE PARAMETERS 
+      USE PARAMETERS
 
       IMPLICIT NONE
 
       integer:: ntens
       real*8 :: vect3D(nSymm,1), vect2D(ntens,1)
-      
+
       vect2D = zero
 
       vect2D(1,1) = vect3D(1,1)
@@ -1802,14 +1802,14 @@
         vect2D(4,1) = vect3D(6,1)
       endif
 
-      RETURN 
+      RETURN
 
       END SUBROUTINE voigtTruncate
 
 ************************************************************************
-			SUBROUTINE symtensor2vector2(ATens,AVect)
-			! this subroutine maps a symmetric tensor to a vector
-			! for unSymmmetric tensor you can use "reshape" function
+      SUBROUTINE symtensor2vector2(ATens,AVect)
+      ! this subroutine maps a symmetric tensor to a vector
+      ! for unSymmmetric tensor you can use "reshape" function
 
       USE PARAMETERS
 
@@ -1817,12 +1817,12 @@
 
       integer:: i
       real*8 :: ATens(2,2), AVect(3,1)
-      
+
       do i = 1, 2
         AVect(i,1) = ATens(i,i)
       enddo
-			AVect(3,1) = ATens(1,2)
-      
+      AVect(3,1) = ATens(1,2)
+
       RETURN
       END SUBROUTINE symtensor2vector2
 
@@ -1838,22 +1838,22 @@
 
       integer:: i
       real*8 :: ATens(3,3), AVect(nSymm,1)
-      
+
       do i = 1, 3
         AVect(i,1) = ATens(i,i)
       enddo
 
-			AVect(4,1) = ATens(2,3)
-			AVect(5,1) = ATens(1,3)
-			AVect(6,1) = ATens(1,2)
-      
+      AVect(4,1) = ATens(2,3)
+      AVect(5,1) = ATens(1,3)
+      AVect(6,1) = ATens(1,2)
+
       RETURN
       END SUBROUTINE symtensor2vector3
 
 ************************************************************************
 
-			SUBROUTINE vector2symtensor2(Avect,Atens)
-			! this subroutine transforms a 4x1 Voigt vector to 2x2 symmetric tensor
+      SUBROUTINE vector2symtensor2(Avect,Atens)
+      ! this subroutine transforms a 4x1 Voigt vector to 2x2 symmetric tensor
 
       USE PARAMETERS
 
@@ -1866,16 +1866,16 @@
         ATens(i,i) = AVect(i,1)
       enddo
 
-			ATens(1,2) = AVect(3,1)
-			ATens(2,1) = ATens(1,2)
-      
+      ATens(1,2) = AVect(3,1)
+      ATens(2,1) = ATens(1,2)
+
 
       RETURN
       END SUBROUTINE vector2symtensor2
 
 ************************************************************************
       SUBROUTINE vector2symtensor3(Avect,Atens)
-			! this subroutine transforms a 6x1 Voigt vector to 3x3 symmetric tensor
+      ! this subroutine transforms a 6x1 Voigt vector to 3x3 symmetric tensor
 
       USE PARAMETERS
 
@@ -1889,12 +1889,12 @@
       enddo
 
       ATens(2,3) = AVect(4,1)
-			ATens(1,3) = AVect(5,1)
-			ATens(1,2) = AVect(6,1)
-			ATens(2,1) = ATens(1,2)
-			ATens(3,1) = ATens(1,3)
-			ATens(3,2) = ATens(2,3)
-      
+      ATens(1,3) = AVect(5,1)
+      ATens(1,2) = AVect(6,1)
+      ATens(2,1) = ATens(1,2)
+      ATens(3,1) = ATens(1,3)
+      ATens(3,2) = ATens(2,3)
+
 
       RETURN
       END SUBROUTINE vector2symtensor3
@@ -1902,40 +1902,40 @@
 ************************************************************************
       SUBROUTINE tangent2matrix(C,D)
 !
-!     this subroutine maps the fourth order material/spatial tangent 
-!     tensor (3x3x3x3) to a 2nd order stiffness tensor (6x6) using 
+!     this subroutine maps the fourth order material/spatial tangent
+!     tensor (3x3x3x3) to a 2nd order stiffness tensor (6x6) using
 !     voigt notation: 11> 1, 22> 2, 33> 3, 23/32> 4, 13/31> 5, 12/21> 6
 
       USE PARAMETERS
-      
+
       IMPLICIT NONE
 
       integer:: i, j, k, l, rw, cl
       integer:: Voigt(nSymm,2)
       real*8 :: C(3,3,3,3), D(nSymm,nSymm)
-      
+
       ! Voigt convetion: (1,1) (2,2) (3,3) (2,3) (1,3) (1,2)
-      Voigt = reshape((/ 1, 2, 3, 2, 1, 1,  1, 2, 3, 3, 3, 2 /), 
+      Voigt = reshape((/ 1, 2, 3, 2, 1, 1,  1, 2, 3, 3, 3, 2 /),
      &        shape(Voigt))
 
       do rw = 1, nSymm
-				do cl = 1, nSymm
-					i = Voigt(rw,1)
-					j = Voigt(rw,2)
-					k = Voigt(cl,1)
-					l = Voigt(cl,2)
+        do cl = 1, nSymm
+          i = Voigt(rw,1)
+          j = Voigt(rw,2)
+          k = Voigt(cl,1)
+          l = Voigt(cl,2)
 
-					D(rw,cl) = C(i,j,k,l)
-				enddo
+          D(rw,cl) = C(i,j,k,l)
+        enddo
       enddo
 
       RETURN
       END SUBROUTINE tangent2matrix
-      
+
 ************************************************************************
 ************************************************************************
 
-!     ADDITIONAL SUBROUTINES AVAILABEL THROUGH ABAQUS 
+!     ADDITIONAL SUBROUTINES AVAILABEL THROUGH ABAQUS
 !     CONSULT ABAQUS MANUAL FOR THE DETAILS
 
 !     CALL SINV(STRESS,SINV1,SINV2,NDI,NSHR)
