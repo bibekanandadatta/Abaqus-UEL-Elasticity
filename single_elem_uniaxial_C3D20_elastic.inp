@@ -1,0 +1,91 @@
+*Heading
+*Node
+  1,           1.,           1.,           1.
+  2,           1.,           0.,           1.
+  3,           1.,           1.,           0.
+  4,           1.,           0.,           0.
+  5,           0.,           1.,           1.
+  6,           0.,           0.,           1.
+  7,           0.,           1.,           0.
+  8,           0.,           0.,           0.
+  9,           0.,           1.,          0.5
+  10,           0.,          0.5,           0.
+  11,           0.,           0.,          0.5
+  12,           0.,          0.5,           1.
+  13,           1.,          0.5,           1.
+  14,           1.,           0.,          0.5
+  15,           1.,          0.5,           0.
+  16,           1.,           1.,          0.5
+  17,          0.5,           0.,           1.
+  18,          0.5,           1.,           1.
+  19,          0.5,           0.,           0.
+  20,          0.5,           1.,           0.
+**************************************************
+*User Element,Type=U8,Nodes=20,Coordinates=3,Properties=2,Iproperties=2
+1,2,3
+*Element, type=U8
+1,  5,  6,  8,  7,  1,  2,  4,  3, 12, 11, 10, 9, 13, 14, 15, 
+    16, 18, 17, 19, 20
+**************************************************
+*Nset, nset=All, generate
+  1,  20,   1
+*Elset, elset=All
+ 1,
+*Nset, nset=Bottom
+  2,  4,  6,  8, 11, 14, 17, 19
+*Elset, elset=Bottom
+ 1,
+*Nset, nset=Front
+  1,  2,  5,  6, 12, 13, 17, 18
+*Elset, elset=Front
+ 1,
+*Nset, nset=Left, generate
+  5,  12,   1
+*Elset, elset=Left
+ 1,
+*Nset, nset=Rear
+  3,  4,  7,  8, 10, 15, 19, 20
+*Elset, elset=Rear
+ 1,
+*Nset, nset=Right
+  1,  2,  3,  4, 13, 14, 15, 16
+*Elset, elset=Right
+ 1,
+*Nset, nset=Top
+  1,  3,  5,  7,  9, 16, 18, 20
+*Elset, elset=Top
+ 1,
+**************************************************
+*uel property,elset=all
+** rho, E, nu, nInt, localPostVar
+79E9, 0.3, 27, 12
+**************************************************
+*Element, type=C3D20
+100001,  5,  6,  8,  7,  1,  2,  4,  3, 12, 11, 10, 9, 13, 14, 15, 
+         16, 18, 17, 19, 20
+*Elset, elset=elDummy 
+100001
+*Solid section, elset=elDummy, material=Dummy
+*Material, name=Dummy
+*Elastic
+1.e-20
+**************************************************
+*Boundary
+Left, 1, 1
+Bottom, 2, 2
+Rear, 3, 3
+**************************************************
+*Amplitude, name=LinearRamp
+0., 0., 1., 1.
+**************************************************
+*Step, name=Stretch, nlgeom=NO, inc=1000
+*Static
+1, 1, 1, 1
+*Boundary, amplitude=LinearRamp
+Right, 1, 1, 0.01
+*Restart, write, frequency=0 
+*Output, field, frequency=1, time marks=no
+*node output, nset=All
+u
+*End Step
+**************************************************
