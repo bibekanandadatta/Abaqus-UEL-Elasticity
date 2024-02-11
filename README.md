@@ -25,6 +25,11 @@ As a default, Abaqus prefers the user subroutines to be written in Fortran fixed
 
 The constitutive law for the material is described by the isotropic Hooke's law. Since Abaqus/ Viewer does not provide native support for the visualization of user elements, an additional layer of elements with the same element connectivity has been created and results at the integration points of the elements are stored using the `UVARM` subroutine.
 
+**To-do list for elements:**
+- [ ] Add the documentation for element formulation and constitutive models.
+
+
+
 > [!NOTE]
 > As of now, plane stress and axisymmetric elements are not available, but users can easily extend the subroutine to include these capabilities.
 > The constitutive behavior of the material can be extended to include viscoelasticity, plasticity, and uncoupled thermoelasticity.
@@ -60,6 +65,7 @@ An additional set of elements with the same element connectivity as the user ele
 
 
 **To-do list for example input files:**
+- [ ] In the README.md file, add the available element tags and examples for keywords for user elements.
 - [ ] Add examples showing how to use body force and traction/ pressure boundary conditions.
 - [ ] Add input file parser for pre-processing.
 
