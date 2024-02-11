@@ -80,8 +80,7 @@
 !                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
-!     jprops(2)   = nIntS           no of integration points on surface
-!     jprops(3)   = localPostVars   no of local (int pt) post-processing variables
+!     jprops(2)   = localPostVars   no of local (int pt) post-processing variables
 ************************************************************************
 !                           PARAMETERS MODULE
 !
