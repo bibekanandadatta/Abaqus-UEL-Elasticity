@@ -1,55 +1,58 @@
 *Heading
+** abaqus/ standard input file for uniaxial test of
+** single CPE3 (U5) type element for uel_mech.for
 *Node
 1,           0.,           0.
 2,           1.,           0.
 3,           0.,           1.
 4,           1.,           1.
-5,          0.5,           0.
-6,           1.,          0.5
-7,          0.5,          0.5
-8,          0.5,           1.
-9,           0.,          0.5
 **************************************************
-*User Element,Type=U2,Nodes=6,Coordinates=2,Properties=2,Iproperties=2
+*User Element,Type=U5,Nodes=3,Coordinates=2,Properties=2,Iproperties=2
 1,2
-*Element, type=U2
-1, 1, 2, 4, 5, 6, 7
-2, 4, 3, 1, 8, 9, 7
+*Element, type=U5
+1, 1, 2, 4
+2, 4, 3, 1
 **************************************************
 *Nset, nset=All, generate
- 1,  9,  1
+ 1,  4,  1
 *Elset, elset=All
  1, 2
 *Nset, nset=Bottom
- 1, 2, 5
+ 1, 2
 *Elset, elset=Bottom
  1,
 *Nset, nset=Left
- 1, 3, 9
+ 1, 3
 *Elset, elset=Left
  2,
-*Nset, nset=Right, generate
- 2,  6,  2
+*Nset, nset=Right
+ 2, 4
 *Elset, elset=Right
  1,
 *Nset, nset=Top
- 3, 4, 8
+ 3, 4
 *Elset, elset=Top
  2,
 **************************************************
 *uel property,elset=all
-** rho, E, nu, nInt, localPostVar
-79E9, 0.3, 3, 6
+** rho, E, nu, nInt, nPostVars
+79E9, 0.3, 1, 6
 **************************************************
-*Element, type=CPE6
-100001, 1, 2, 4, 5, 6, 7
-100002, 4, 3, 1, 8, 9, 7
+** same element connectivity as the user element
+** uses built-in abaqus element to overlay results
+** negligible young's modulus won't affect the result
+*Element, type=CPE3
+100001, 1, 2, 4
+100002, 4, 3, 1
 *Elset, elset=elDummy 
 100001, 100002
 *Solid section, elset=elDummy, material=Dummy
 *Material, name=Dummy
 *Elastic
 1.e-20
+** strain vector (3) and stress vector (3) as user output
+*User output variables
+6
 **************************************************
 *Boundary
 Bottom, 2, 2
@@ -67,5 +70,8 @@ Right, 1, 1, 0.01
 *Output, field, frequency=1, time marks=no
 *node output, nset=All
 u
+** specify the user-defined output for the dummy element set
+*element output, elset=elDummy
+uvarm
 *End Step
 **************************************************

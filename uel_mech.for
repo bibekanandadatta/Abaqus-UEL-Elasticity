@@ -7,15 +7,15 @@
 ************************************************************************
 !                       JTYPE DEFINITION
 !
-!     U1                PLANE STRAIN TRI3 ELEMENT
-!     U2                PLANE STRAIN TRI6 ELEMENT
-!     U3                PLANE STRAIN QUAD4 ELEMENT
-!     U4                PLANE STRAIN QUAD8 ELEMENT
+!     U1                THREE-DIMENSIONAL TET4 ELEMENT
+!     U2                THREE-DIMENSIONAL TET10 ELEMENT
+!     U3                THREE-DIMENSIONAL HEX8 ELEMENT
+!     U4                THREE-DIMENSIONAL HEX20 ELEMENT
 !
-!     U5                THREE-DIMENSIONAL TET4 ELEMENT
-!     U6                THREE-DIMENSIONAL TET10 ELEMENT
-!     U7                THREE-DIMENSIONAL HEX8 ELEMENT
-!     U8                THREE-DIMENSIONAL HEX20 ELEMENT
+!     U5                PLANE STRAIN TRI3 ELEMENT
+!     U6                PLANE STRAIN TRI6 ELEMEN
+!     U7                PLANE STRAIN QUAD4 ELEMENT
+!     U8                PLANE STRAIN QUAD8 ELEMENT
 ************************************************************************
 !               VARIABLES TO BE UPDATED WITHIN THE SUBROUTINE
 !
@@ -80,7 +80,7 @@
 !                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
-!     jprops(2)   = localPostVars   no of local (int pt) post-processing variables
+!     jprops(2)   = nPostVars       no of local (int pt) post-processing variables
 ************************************************************************
 !                           PARAMETERS MODULE
 !
@@ -147,7 +147,7 @@
      &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS,
      &      MLVARX, MDLOAD, JPROPS, NJPROPS
 
-      integer:: nInt, localPostVars
+      integer:: nInt, nPostVars
       integer:: nDim, ndi, nshr, ntens, uDOF, uDOFEL
 
       integer:: lenJobName,lenOutDir
@@ -189,17 +189,17 @@
 
       ! assign parameter specific to analysis and element types
       if ((JTYPE.ge.1).and.(JTYPE.le.4)) then
-        analysis = 'PE'         ! plane strain analysis
-        nDim = 2
-        ndi = 2
-        nshr = 1
-        ntens = 3
-      elseif ((JTYPE.ge.5).and.(JTYPE.le.8)) then
         analysis = '3D'         ! three-dimensional analysis
         nDim = 3
         ndi = 3
         nshr = 3
         ntens = 6
+      elseif ((JTYPE.ge.5).and.(JTYPE.le.8)) then
+        analysis = 'PE'         ! plane strain analysis
+        nDim = 2
+        ndi = 2
+        nshr = 1
+        ntens = 3
       else
         write(*,*) 'element type is not supported', JTYPE
         call xit
@@ -211,11 +211,11 @@
 
 
       nInt = jprops(1)
-      localPostVars = jprops(2)
+      nPostVars = jprops(2)
 
       ! array containing variables for post-processing
       if (.not. allocated(globalPostVars)) then
-        allocate(globalPostVars(numElem,nInt,localPostVars))
+        allocate(globalPostVars(numElem,nInt,nPostVars))
 
         ! print necessary information to the screen now (one time)
         write(*,*) '---------------------------------------'
@@ -235,7 +235,7 @@
         write(*,*) '---------- POST-PROCESSING ------------'
         write(*,*) '--- NO OF ELEMENTS            = ', numElem
         write(*,*) '--- DUMMY ELEMENT OFFSET      = ', ElemOffset
-        write(*,*) '--- NO OF VARIABLES AT INT PT = ', localPostVars
+        write(*,*) '--- NO OF VARIABLES AT INT PT = ', nPostVars
         write(*,*) '---------------------------------------'
 
       endif
@@ -463,7 +463,7 @@
 
        SUBROUTINE umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
      &           svars,nsvars,time,dtime,fieldVar,dfieldVar,npredf,
-     &           nDim,ndi,nshr,ntens,jelem,npt,coords,nNode,kstep,kinc,
+     &           nDim,ndi,nshr,ntens,jelem,intPt,coords,nNode,kstep,kinc,
      &           props,nprops,jprops,njprops,analysis)
 
       ! this subroutine calculates isotropic elastic response
@@ -477,7 +477,7 @@
       IMPLICIT NONE
 
       integer:: nsvars, npredf, nDim, ndi, nshr, ntens,
-     &    jelem, npt, nNode, kstep, kinc, nprops, njprops
+     &    jelem, intPt, nNode, kstep, kinc, nprops, njprops
 
       real*8 :: stress(ntens,1), stran(ntens,1), dmat(ntens,ntens),
      &    stranVoigt(nSymm,1), dstranVoigt(nSymm,1), props(1:nprops),
@@ -549,15 +549,17 @@
       elseif (analysis .eq. '3D') then
         Dmat = VoigtMat
         stress = stressVoigt
+        stran = stranVoigt
       else
         write(*,*) 'wrong analysis type'
         call xit
       endif
 
-
+      
       ! save the variables to be post-processed in globalPostVars
-      ! globalPostVars(jelem,npt,1:ntens) = stress(1:ntens,1)
-      ! globalPostVars(jelem,npt,ntens+1:2*ntens) = stran(1:ntens,1)
+      globalPostVars(jelem,intPt,1:ntens) = stress(1:ntens,1)
+      globalPostVars(jelem,intPt,ntens+1:2*ntens) = stran(1:ntens,1)
+
 
       RETURN
 
@@ -570,9 +572,9 @@
      & NUVARM,NOEL,NPT,LAYER,KSPT,KSTEP,KINC,NDI,NSHR,COORD,
      & JMAC,JMATYP,MATLAYO,LACCFLA)
 
-      !  this subroutine is used to transfer postVars from the UEL
-      !  onto the dummy mesh for viewing. Note that an offset of
-      !  elemOffset is used between the real mesh and the dummy mesh.
+      ! this subroutine is used to transfer postVars from the UEL
+      ! onto the dummy mesh for viewing. Note that an offset of
+      ! elemOffset is used between the real mesh and the dummy mesh.
 
       USE PARAMETERS
 
@@ -581,16 +583,13 @@
       DIMENSION UVAR(NUVARM),DIRECT(3,3),T(3,3),TIME(2)
       DIMENSION ARRAY(15),JARRAY(15),JMAC(*),JMATYP(*),COORD(*)
 
-      integer:: i
-
       ! the dimensions of the variables FLGRAY, ARRAY and JARRAY
-      ! must be set equal to or greater than 15.
+      ! must be set equal to or greater than 15.  
+      
+      ! explicityly define the type for uvar to avoid issues
+      real*8 :: uvar
 
-      if (noel .gt. elemOffset) then
-        do i = 1,nuvarm
-          uvar(i) = globalPostVars(noel-elemOffset,npt,i)
-        enddo
-      endif
+      uvar(1:nuvarm) = globalPostVars(noel-elemOffset,npt,1:nuvarm)
 
       RETURN
 

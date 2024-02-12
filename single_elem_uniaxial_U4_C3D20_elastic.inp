@@ -1,4 +1,6 @@
 *Heading
+** abaqus/ standard input file for uniaxial test of
+** single C3D8 (U4) type element for uel_mech.for
 *Node
   1,           1.,           1.,           1.
   2,           1.,           0.,           1.
@@ -21,9 +23,9 @@
   19,          0.5,           0.,           0.
   20,          0.5,           1.,           0.
 **************************************************
-*User Element,Type=U8,Nodes=20,Coordinates=3,Properties=2,Iproperties=2
+*User Element,Type=U4,Nodes=20,Coordinates=3,Properties=2,Iproperties=2
 1,2,3
-*Element, type=U8
+*Element, type=U4
 1,  5,  6,  8,  7,  1,  2,  4,  3, 12, 11, 10, 9, 13, 14, 15, 
     16, 18, 17, 19, 20
 **************************************************
@@ -57,9 +59,12 @@
  1,
 **************************************************
 *uel property,elset=all
-** rho, E, nu, nInt, localPostVar
+** rho, E, nu, nInt, nPostVars
 79E9, 0.3, 27, 12
 **************************************************
+** same element connectivity as the user element
+** uses built-in abaqus element to overlay results
+** negligible young's modulus won't affect the result
 *Element, type=C3D20
 100001,  5,  6,  8,  7,  1,  2,  4,  3, 12, 11, 10, 9, 13, 14, 15, 
          16, 18, 17, 19, 20
@@ -69,6 +74,9 @@
 *Material, name=Dummy
 *Elastic
 1.e-20
+** strain (6) and stress vectors (6) as user output
+*User output variables
+12
 **************************************************
 *Boundary
 Left, 1, 1
@@ -87,5 +95,8 @@ Right, 1, 1, 0.01
 *Output, field, frequency=1, time marks=no
 *node output, nset=All
 u
+** specify the output for the dummy element set
+*element output, elset=eldummy
+uvarm
 *End Step
 **************************************************
