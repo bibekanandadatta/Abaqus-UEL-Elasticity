@@ -27,6 +27,7 @@ The constitutive law for the material is described by the isotropic Hooke's law.
 
 **To-do list for elements:**
 - [ ] Add the documentation for element formulation and constitutive models.
+- [ ] Add the available user element tags and their equivalent elements in Abaqus.
 
 
 
@@ -46,7 +47,9 @@ The constitutive law for the material is described by the isotropic Hooke's law.
 
 #### Properties
 
-To demonstrate the usage of the user element subroutine capabilities in Abaqus, a few sample input files are provided for different element types. Users can use Abaqus/ CAE to create a standard Abaqus model and export `.inp` files. It is recommended to use the option `Do not use parts and assemblies in input files` from the **model attributes** drop-down menu before generating the input file. This option will generate a cleaner input file. Once the standard input file is exported from Abaqus, the user will need to modify it to use it with the UEL. For isotropic linear elastic elements, users need to specify Young's modulus and Poisson ratio as the real properties. Additional integer properties to be specified are the number of integration points, `nInt`, and the number of variables to be post-processed at the integration points `localPostVars`.
+To demonstrate the usage of the user element subroutine capabilities in Abaqus, a few sample input files are provided for different element types. Users can use Abaqus/ CAE to create a standard Abaqus model and export `.inp` files. The name of the provided files indicates the type of elements being used and its equivalent counterpart in Abaqus which is used for visualization. Users are highly recommended to go through the input file to understand different element types and element and material properties being used. 
+
+It is recommended to use the option `Do not use parts and assemblies in input files` from the **model attributes** drop-down menu before generating the input file. This option will generate a cleaner input file. Once the standard input file is exported from Abaqus, the user will need to modify it to use it with the UEL. For isotropic linear elastic elements, users need to specify Young's modulus and Poisson ratio as the real properties. Additional integer properties to be specified are the number of integration points, `nInt`, and the number of variables to be post-processed at the integration points `localPostVars`.
 
 
 #### Visualization
@@ -65,9 +68,8 @@ An additional set of elements with the same element connectivity as the user ele
 
 
 **To-do list for example input files:**
-- [ ] In the README.md file, add the available element tags and examples for keywords for user elements.
 - [ ] Add examples showing how to use body force and traction/ pressure boundary conditions.
-- [ ] Add input file parser for pre-processing.
+- [ ] Add a Python script to parse a large input file for pre-processing.
 
 
 
