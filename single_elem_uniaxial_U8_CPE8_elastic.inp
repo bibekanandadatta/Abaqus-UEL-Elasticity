@@ -39,7 +39,7 @@
 **************************************************
 *uel property,elset=all
 ** rho, E, nu, nInt, nPostVar
-79E9, 0.3, 4, 6
+79E9, 0.3, 9, 6
 **************************************************
 ** same element connectivity as the user element
 ** uses built-in abaqus element to overlay results
@@ -57,8 +57,8 @@
 6
 **************************************************
 *Boundary
-Bottom, 2, 2
 Left, 1, 1
+Bottom, 2, 2
 **************************************************
 *Amplitude, name=LinearRamp
 0., 0., 1., 1.
