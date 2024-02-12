@@ -1,7 +1,7 @@
 # to run PowerShell scipt, type: .\script_name on PowerShell terminal
 
 $NPROC      = 1
-$JOBNAME1   = "single_elem_uniaxial_CPE4_elastic"
+$JOBNAME1   = "single_elem_uniaxial_U7_CPE4_elastic"
 $INPUTFILE1 = "$JOBNAME1.inp"
 
 $UEL        = "uel_mech.for"
