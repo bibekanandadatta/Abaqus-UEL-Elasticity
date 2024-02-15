@@ -13,7 +13,7 @@
 !     U4                THREE-DIMENSIONAL HEX20 ELEMENT
 !
 !     U5                PLANE STRAIN TRI3 ELEMENT
-!     U6                PLANE STRAIN TRI6 ELEMEN
+!     U6                PLANE STRAIN TRI6 ELEMENT
 !     U7                PLANE STRAIN QUAD4 ELEMENT
 !     U8                PLANE STRAIN QUAD8 ELEMENT
 ************************************************************************
@@ -314,6 +314,10 @@
 
       !!!!!!!!!!!!! END VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!
 
+      ! if applicable gather the prescribed field variables in a vector
+      ! such as temperature (as shown below in commented line - not tested)
+      ! fieldNode(1,1:nNode) = predef(1,1,1:nNode)
+      ! dfieldNode(1,1:nNode) = predef(2,1,1:nNode)
 
       !!!!!!!!!!!!!!!!! ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!!!!!!!
 
@@ -328,12 +332,6 @@
         write(*,*) 'incorrect model dimension'
         call xit
       endif
-
-      ! if applicable gather the prescribed field variables in a vector
-      ! such as temperature (as shown below in commented line - not tested)
-      ! fieldNode(1,1:nNode) = predef(1,1,1:nNode)
-      ! dfieldNode(1,1:nNode) = predef(2,1,1:nNode)
-
 
       ! loop through all the integration points (main/ external loop)
       do intPt = 1, nInt
@@ -362,14 +360,6 @@
         endif
 
         dNdx    = matmul(dNdxi,dxidx)       ! calculate dNdx
-
-
-        ! interpolate the field variable at the integration point
-        ! (as shown below - not tested)
-    !     fieldVar = dot_product(reshape(Nxi,(/nNode/)),
-    !  &                        reshape(fieldNode,(/nNode/)))
-    !     dfieldVar = dot_product(reshape(Nxi,(/nNode/)),
-    !  &                        reshape(dfieldNode,(/nNode/)))
 
         ! loop over all the nodes (internal loop)
         do i=1,nNode
@@ -413,7 +403,7 @@
       !!!!!!!!!!!!!! COMPLETE ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!
 
 
-      !!!!!!!!!!!!!!!!!!!! KINEMATIC CALCULATION !!!!!!!!!!!!!!!!!!!!!!!
+      !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!!!
 
         ! calculate strain, dstran, or deformation gradient
         stran = matmul(Bmat,reshape(Uall(1:uDOFEl),(/uDOFEL,1/)))
@@ -421,13 +411,15 @@
 
         call voigtAugment(stran,stranVoigt,ntens)
         call voigtAugment(stran,stranVoigt,ntens)
+      
+        ! interpolate additional field variable at the integration point
+        ! (as shown below - not tested)
+    !     fieldVar = dot_product(reshape(Nxi,(/nNode/)),
+    !  &                        reshape(fieldNode,(/nNode/)))
+    !     dfieldVar = dot_product(reshape(Nxi,(/nNode/)),
+    !  &                        reshape(dfieldNode,(/nNode/)))
 
-      !!!!!!!!!!!!!!!!!!! END KINEMATIC CALCULATION !!!!!!!!!!!!!!!!!!!!
-
-
-      !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!!!
-
-         !call material point subroutine (UMAT) for specific material
+        ! call material point subroutine (UMAT) for specific material
         call umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
      &           svars,nsvars,time,dtime,fieldVar,dfieldVar,npredf,
      &           nDim,ndi,nshr,ntens,jelem,intPt,coords,nNode,kstep,kinc,
@@ -533,7 +525,6 @@
       ! such as plasticity, viscoelasticity, etc.
       ! also perhpas in other time-dependent field problems
       ! do other calculations as needed based on SVARS
-
 
       ! reshape the Voigt form based on analysis
       if (analysis .eq. 'PE') then
@@ -702,6 +693,7 @@
 
         ! full integration for quad4
         elseif (nInt.eq.4) then
+
           ! gauss weights
           w(1:4) = one
 
@@ -843,9 +835,8 @@
         ! reduced integration scheme for hex8
         if (nInt.eq.1) then
 
-          ! gauss weights
+          ! Gauss weights and Gauss pt locations in master element
           w(1) = eight
-          ! Gauss pt locations in master element
           xi(1,1:3) = zero
 
         ! full integration scheme for hex8
@@ -1335,7 +1326,7 @@
       ! this subroutine RETURNs the list of nodes on an
       ! element face for standard 2D and 3D Lagrangian elements
 
-      implicit none
+      IMPLICIT NONE
 
       integer, intent (in) :: nDim, nNode, face
       integer, intent (out):: list(*)
@@ -1412,15 +1403,14 @@
 
       END SUBROUTINE faceNodes
 
-
 ************************************************************************
 *********************** MATRIX ALGEBRA SECTION *************************
 ************************************************************************
 !
 !     SUBROUTINE to create identity matrix of any dimention
-!     SUBROTINE to calculate determinant of matrix
+!     SUBROUTINE to calculate determinant of matrix
 !     SUBROUTINE to calculate direct inverse of 2x2 and 3x3 matrix
-!     SUBROTUINE to map symmetric tensor to a vector
+!     SUBROUTINE to map symmetric tensor to a vector
 !     SUBROUTINE to map 4th order tensor to 2D Voigt matrix
 ************************************************************************
 
