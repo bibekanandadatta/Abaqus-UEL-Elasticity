@@ -74,6 +74,7 @@ Right, 1, 1, 0.01
 *Restart, write, frequency=0 
 *Output, field, frequency=1, time marks=no
 *node output, nset=All
+u,rf
 ** specify the user-defined output for the dummy element set
 *element output, elset=elDummy
 uvarm
