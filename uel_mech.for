@@ -16,16 +16,36 @@
 !     U6                PLANE STRAIN TRI6 ELEMENT
 !     U7                PLANE STRAIN QUAD4 ELEMENT
 !     U8                PLANE STRAIN QUAD8 ELEMENT
+!
+************************************************************************
+!          VOIGT NOTATION CONVENTION FOR STRESS/ STRAIN TENSORS
+!
+!       In this subroutine we adopted the following convention for 
+!       symmetric stress and strain tensor following Voigt notation
+!       This is different than what is followed by Abaqus/ Standard
+!
+!         sigma11, sigma22, sigma33, sigma23, sigma13, sigma12
+!       strain11, strain22, strain33, strain23, strain13, strain12
+!
 ************************************************************************
 !                       LIST OF MATERIAL PROPERTIES
 !
 !     props(1)   = E                Young's modulus
 !     props(2)   = nu               Poisson ratio
+!
 ************************************************************************
 !                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
 !     jprops(2)   = nPostVars       no of local (int pt) post-processing variables
+!
+************************************************************************
+!                        POST-PROCESSED VARIABLES
+!                     (follows the convention above)
+!
+!     uvar(1:ntens)                 Cauchy stress tensor components 
+!     uvar(ntens+1:2*ntens)         Small train tensor components
+!
 ************************************************************************
 !               VARIABLES TO BE UPDATED WITHIN THE SUBROUTINE
 !
@@ -82,6 +102,8 @@
 !     MLVARX                        Dimension variable
 !     PERIOD                        Time period of the current step
 ************************************************************************
+
+
 ************************************************************************
 !                           PARAMETERS MODULE
 !
@@ -162,8 +184,7 @@
       call getOutDir(outDir,lenOutDir)
       fileName = outDir(1:lenOutDir)//'\aaMSG_'//
      &     jobName(1:lenJobName)//'.dat'
-      open(unit=80,file=fileName,status='unknown')
-
+      open(unit=125,file=fileName,status='unknown')
 
       ! assign parameter specific to analysis and element types
       if ((JTYPE.ge.1).and.(JTYPE.le.4)) then
@@ -179,7 +200,7 @@
         nshr = 1
         ntens = 3
       else
-        write(80,*) 'element type is not supported', JTYPE
+        write(125,*) 'element type is not supported', JTYPE
         write(*,*) 'element type is not supported', JTYPE
         call xit
       endif
@@ -189,7 +210,7 @@
       if((lflags(1).eq.1).or.(lflags(1).eq.2)) then
         ABQ_PROCEDURE = 'STATIC'
       else
-        write(80,*) 'Incorrect STEP procedure in Abaqus', lflags(1)
+        write(125,*) 'Incorrect STEP procedure in Abaqus', lflags(1)
         write(*,*) 'Incorrect STEP procedure in Abaqus', lflags(1)
         call xit
       endif
@@ -203,11 +224,10 @@
 
       ! check to see if it's a general step or a linear purturbation step
       if(lflags(4).eq.1) then
-        write(80,*) 'The load step should be a GENERAL step'
+        write(125,*) 'The load step should be a GENERAL step'
         write(*,*) 'The load step should be a GENERAL step'
         call xit
       endif
-
 
       ! for mixed or coupled problem, add other DOF counts as needed
       uDOF = nDim             ! displacement degrees of freedom of a node
@@ -216,33 +236,32 @@
       nInt = jprops(1)
       nPostVars = jprops(2)
 
-
       ! array containing variables for post-processing
       if (.not. allocated(globalPostVars)) then
         allocate(globalPostVars(numElem,nInt,nPostVars))
 
-        ! print necessary information to the debug file 
-        write(80,*) '---------------------------------------'
-        write(80,*) '------- ABAQUS SMALL STRAIN UEL -------'
-        write(80,*) '---------------------------------------'
-        write(80,*) jobName
-        write(80,*) '---------------------------------------'
-        write(80,*) '------- PROCEDURE = ', ABQ_PROCEDURE
-        write(80,*) '------- ANALYSIS TYPE   = ', analysis
-        write(80,*) '---------- NLGEOM = ', NLGEOM
-        write(80,*) '------- MODEL DIMENSION = ', nDim
-        write(80,*) '------- ELEMENT NODES   = ', NNODE
-        write(80,*) '---------------------------------------'
-        write(80,*) '-------- INTEGRATION SCHEME -----------'
-        write(80,*) '----------- NINT  = ', nInt
-        write(80,*) '---------------------------------------'
-        write(80,*) '---------- POST-PROCESSING ------------'
-        write(80,*) '--- NO OF ELEMENTS            = ', numElem
-        write(80,*) '--- DUMMY ELEMENT OFFSET      = ', ElemOffset
-        write(80,*) '--- NO OF VARIABLES AT INT PT = ', nPostVars
-        write(80,*) '---------------------------------------'
+        ! print necessary information to the debug file (one time)
+        write(125,*) '---------------------------------------'
+        write(125,*) '------- ABAQUS SMALL STRAIN UEL -------'
+        write(125,*) '---------------------------------------'
+        write(125,*) jobName
+        write(125,*) '---------------------------------------'
+        write(125,*) '------- PROCEDURE = ', ABQ_PROCEDURE
+        write(125,*) '------- ANALYSIS TYPE   = ', analysis
+        write(125,*) '---------- NLGEOM = ', NLGEOM
+        write(125,*) '------- MODEL DIMENSION = ', nDim
+        write(125,*) '------- ELEMENT NODES   = ', NNODE
+        write(125,*) '---------------------------------------'
+        write(125,*) '-------- INTEGRATION SCHEME -----------'
+        write(125,*) '----------- NINT  = ', nInt
+        write(125,*) '---------------------------------------'
+        write(125,*) '---------- POST-PROCESSING ------------'
+        write(125,*) '--- NO OF ELEMENTS            = ', numElem
+        write(125,*) '--- DUMMY ELEMENT OFFSET      = ', ElemOffset
+        write(125,*) '--- NO OF VARIABLES AT INT PT = ', nPostVars
+        write(125,*) '---------------------------------------'
 
-        ! print necessary information to the screen now 
+        ! print necessary information to the screen now (one time)
         write(*,*) '---------------------------------------'
         write(*,*) '------- ABAQUS SMALL STRAIN UEL -------'
         write(*,*) '---------------------------------------'
@@ -354,7 +373,7 @@
         ID = ID3
         call gaussQuadrtr3(nNode,nInt,w,xi)
       else
-        write(80,*) 'incorrect model dimension', nDim
+        write(125,*) 'incorrect model dimension', nDim
         write(*,*) 'incorrect model dimension', nDim
         call xit
       endif
@@ -368,7 +387,7 @@
         elseif (nDim.eq.3) then
           call interpFunc3(nNode,nInt,intPt,xi,Nxi,dNdxi)
         else
-          write(80,*) 'incorrect model dimension', nDim
+          write(125,*) 'incorrect model dimension', nDim
           write(*,*) 'incorrect model dimension', nDim
           call xit
         endif
@@ -383,7 +402,7 @@
         endif
 
         if (istat .eq. 0) then
-          write(80,*) 'ill-condiitoned element jacobian', jElem, intPt
+          write(125,*) 'ill-condiitoned element jacobian', jElem, intPt
           write(*,*) 'ill-condiitoned element jacobian', jElem, intPt
         endif
 
@@ -418,7 +437,7 @@
             Ba(6,2) = dNdx(i,1)
 
           else
-            write(80,*) 'wrong analysis type', analysis
+            write(125,*) 'wrong analysis type', analysis
             write(*,*) 'wrong analysis type', analysis
             call xit
           endif
@@ -571,16 +590,14 @@
         stress = stressVoigt
         stran = stranVoigt
       else
-        write(80,*) 'wrong analysis type', analysis
+        write(125,*) 'wrong analysis type', analysis
         write(*,*) 'wrong analysis type', analysis
         call xit
       endif
-
       
       ! save the variables to be post-processed in globalPostVars
       globalPostVars(jelem,intPt,1:ntens) = stress(1:ntens,1)
       globalPostVars(jelem,intPt,ntens+1:2*ntens) = stran(1:ntens,1)
-
 
       RETURN
 
@@ -625,10 +642,10 @@
 !
 !     SUBROUTINE to evaluate shape functions at the gauss pts
 !     SUBROUTINE to calculate Gauss Pts in 2D and 3D elements
-!     ----- currently supports:    (a) tri elements   (3 and 6 nodes) : full integration
-!                                  (b) quad elements  (4 and 8 nodes) : reduced and full integration
-!                                  (c) tet elements   (4 and 10 nodes): full integration
-!                                  (d) hex elements   (8 and 20 nodes): reduced and full integration
+!     ----- currently supports:    (a) tri elements (3 and 6 nodes) : full integration
+!                                  (b) quad elements (4 and 8 nodes): reduced and full integration
+!                                  (c) tet elements (4 and 10 nodes): full integration
+!                                  (d) hex elements (8 and 20 nodes): reduced and full integration
 ************************************************************************
 
       SUBROUTINE interpFunc2(nNode,nInt,intPt,xi_int,Nxi,dNdxi)
@@ -781,7 +798,7 @@
         dNdxi(8,2) = -eta*(one - xi)
 
       else
-        write(80,*) 'element is not supported for 2D analysis', nNode
+        write(125,*) 'element is not supported for 2D analysis', nNode
         write(*,*) 'element is not supported for 2D analysis', nNode
         call xit
       endif
@@ -1044,7 +1061,7 @@
         dNdxi(20,2) = (one-xi)*(one-zeta**two)/four
         dNdxi(20,3) = -zeta*(one-xi)*(one+eta)/two
       else
-        write(80,*) 'element is not supported for 3D analysis', nNode
+        write(125,*) 'element is not supported for 3D analysis', nNode
         write(*,*) 'element is not supported for 3D analysis', nNode
         call xit
       endif
@@ -1077,7 +1094,7 @@
           xi(1,1) = third
           xi(2,1) = third
         else
-          write(80,*) 'wrong gauss points for tri3 element', nInt
+          write(125,*) 'wrong gauss points for tri3 element', nInt
           write(*,*) 'wrong gauss points for tri3 element', nInt
           call xit
         endif
@@ -1093,7 +1110,7 @@
           xi(3,1) = half
           xi(3,2) = zero
         else
-          write(80,*) 'wrong gauss points for tri6 element', nInt
+          write(125,*) 'wrong gauss points for tri6 element', nInt
           write(*,*) 'wrong gauss points for tri6 element', nInt
           call xit
         endif
@@ -1120,7 +1137,7 @@
           xi(4,1) = x1D(1)
           xi(4,2) = x1D(1)
         else
-          write(80,*) 'wrong gauss points for quad4 element', nInt
+          write(125,*) 'wrong gauss points for quad4 element', nInt
           write(*,*) 'wrong gauss points for quad4 element', nInt
           call xit
         endif
@@ -1177,13 +1194,13 @@
           xi(9,2) = x1D(1)
 
         else
-          write(80,*) 'wrong gauss points for quad8 element', nInt
+          write(125,*) 'wrong gauss points for quad8 element', nInt
           write(*,*) 'wrong gauss points for quad8 element', nInt
           call xit
         endif
 
       else
-        write(80,*) 'elements not supported for 2D analysis', nNode
+        write(125,*) 'elements not supported for 2D analysis', nNode
         write(*,*) 'elements not supported for 2D analysis', nNode
         call xit
       endif
@@ -1219,7 +1236,7 @@
           xi(1:3,1) = fourth
 
         else
-          write(80,*) 'wrong gauss points for tet4 element', nInt
+          write(125,*) 'wrong gauss points for tet4 element', nInt
           write(*,*) 'wrong gauss points for tet4 element', nInt
           call xit
         endif
@@ -1243,7 +1260,7 @@
           xi(4,3) = xi(2,1)
 
         else
-          write(80,*) 'wrong gauss points for tet10 element', nInt
+          write(125,*) 'wrong gauss points for tet10 element', nInt
           write(*,*) 'wrong gauss points for tet10 element', nInt
           call xit
         endif
@@ -1272,7 +1289,7 @@
           end do
 
         else
-          write(80,*) 'wrong gauss points for hex8 element', nInt
+          write(125,*) 'wrong gauss points for hex8 element', nInt
           write(*,*) 'wrong gauss points for hex8 element', nInt
           call xit
         endif
@@ -1317,13 +1334,13 @@
           end do
 
         else
-          write(80,*) 'wrong gauss points for hex20 element', nInt
+          write(125,*) 'wrong gauss points for hex20 element', nInt
           write(*,*) 'wrong gauss points for hex20 element', nInt
           call xit
         endif
 
       else
-        write(80,*) 'element is not supported for 3D analysis', nNode
+        write(125,*) 'element is not supported for 3D analysis', nNode
         write(*,*) 'element is not supported for 3D analysis', nNode
         call xit
       endif
@@ -1507,8 +1524,8 @@
       call detMat2(A,detA)
 
       if (detA .le. zero) then
-          write(80,*) 'WARNING: subroutine inverseMat2:'
-          write(80,*) 'WARNING: det of mat= ', detA
+          write(125,*) 'WARNING: subroutine inverseMat2:'
+          write(125,*) 'WARNING: det of mat= ', detA
 
           write(*,*) 'WARNING: subroutine inverseMat2:'
           write(*,*) 'WARNING: det of mat= ', detA
@@ -1544,8 +1561,8 @@
       call detMat3(A,detA)
 
       if (detA .le. zero) then
-        write(80,*) 'WARNING: subroutine inverseMat3:'
-        write(80,*) 'WARNING: det of mat= ', detA
+        write(125,*) 'WARNING: subroutine inverseMat3:'
+        write(125,*) 'WARNING: det of mat= ', detA
 
         write(*,*) 'WARNING: subroutine inverseMat3:'
         write(*,*) 'WARNING: det of mat= ', detA
