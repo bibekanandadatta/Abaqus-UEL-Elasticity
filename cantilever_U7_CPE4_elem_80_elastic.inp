@@ -1,6 +1,9 @@
-** A linear elastic cantilever beam with 20 x 4 U7 elements
-** Applies body force on the domain and shear traction 
-** on the free surface using the ovalaid dummy elements
+**************************************************
+** Elastic cantilever beam with 20x4 U7 (CPE4) elements
+** 10E3 shear traction on the right surface and gravity
+** demonstrate traction load and body force application
+** on user element using the dummy element technique
+**************************************************
 *Heading
 *Node
 1,           0.,           0.
@@ -302,7 +305,7 @@
 ** The easiest way to do is to create it on the original 
 ** CAE model and generate input file and edit it manually 
 ** for the dummy elements
-**************************************************
+**************************************************s
 *Elset, elset=ElDummy, generate
 100001,100080,1
 *Elset, elset=_BottomSurf_S1, generate
@@ -346,7 +349,7 @@ Left, 1, 2
 ** I am applying shear traction on the right surface and
 ** gravity load in all the dummy elements for body force
 ** specify the user-defined output for the dummy elements
-**************************************************
+**************************************************s
 *Step, name=Bending, nlgeom=NO, inc=1000
 *Static
 0.25, 1, 0.001, 1
