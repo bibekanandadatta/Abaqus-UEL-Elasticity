@@ -21,13 +21,10 @@ To receive updates in this repository, you can also `fork` the repository and sy
 
 ### `uel_mech.for` subroutine
 
-As a default, Abaqus prefers the user subroutines to be written in Fortran fixed form (F77 standard) while common features of modern Fortran can be included if the compiler allows. The element formulation is standard and can be found in any standard finite element textbook. The user element includes 4 types of 2D continuum solid elements (Tri3, Tri6, Quad4, and Quad8) in plane-strain and 4 types of 3D continuum solid elements (Tet4, Tet10, Hex8, Hex10). These elements can be used in both reduced and full integration schemes. It is up to the user to specify the correct number of integration points for each element. Body force and traction boundary conditions have not been implemented in this user subroutine, however, these can be used anyway using a dummy element technique (to be discussed in the next section).
+As a default, Abaqus prefers the user subroutines to be written in Fortran fixed form (F77 standard) while common features of modern Fortran can be included if the compiler allows. The element formulation is standard and can be found in any standard finite element textbook. The user element includes 4 types of 2D continuum solid elements (Tri3, Tri6, Quad4, and Quad8) in plane-strain and 4 types of 3D continuum solid elements (Tet4, Tet10, Hex8, Hex10). These elements can be used in both reduced and full integration schemes. It is up to the user to specify the correct number of integration points for each element. Body force and traction boundary conditions have not been implemented in this user subroutine, however, these can be applied by overlaying standard Abaqus elements on the user elements (to be discussed in the **Visualization** section).
 
-The constitutive law for the material is described by the isotropic Hooke's law. Since Abaqus/ Viewer does not provide native support for the visualization of user elements, an additional layer of elements with the same element connectivity has been created and results at the integration points of the elements are stored using the `UVARM` subroutine.
+The isotropic Hooke's law describes the constitutive law for the material. Since Abaqus/ Viewer does not provide native support for visualizing user elements, an additional layer of elements with the same element connectivity has been created and results at the integration points of the elements are stored using the `UVARM` subroutine.
 
-**To-do list for elements:**
-- [ ] Add the documentation for element formulation and constitutive models.
-- [ ] Add the available user element tags and their equivalent elements in Abaqus.
 
 
 
@@ -36,10 +33,10 @@ The constitutive law for the material is described by the isotropic Hooke's law.
 > The constitutive behavior of the material can be extended to include viscoelasticity, plasticity, and uncoupled thermoelasticity.
 
 > [!WARNING]
-> If the elements are used for materials near-incompressibility limit or under bending case scenarios, the user may want to opt for higher-order elements. Please remember that, these are standard displacement-based element formulations, and no special treatment for shear locking, hourglass modes, or volumetric locking is available.
+> If the elements are used for materials near-incompressibility limit or under bending case scenarios, the user may want to opt for higher-order elements. Please remember that these are standard displacement-based element formulations, and no special treatment for shear locking, hourglass modes, or volumetric locking is available.
 
 > [!TIP]
-> This file contains subroutines to obtain the Gauss quadrature information, interpolation functions for 2D and 3D Lagrangian elements, and matrix operations. Users are highly recommended to go through these subroutines and can repurpose them to write their user element (UEL) code.
+> This file contains subroutines to obtain the Gauss quadrature information, interpolation functions for 2D and 3D Lagrangian elements and matrix operations. Users are highly recommended to go through these subroutines and can repurpose them to write their user element (UEL) code.
 
 
 
@@ -47,7 +44,7 @@ The constitutive law for the material is described by the isotropic Hooke's law.
 
 #### Properties
 
-To demonstrate the usage of the user element subroutine capabilities in Abaqus, a few sample input files are provided for different element types. Users can use Abaqus/ CAE to create a standard Abaqus model and export `.inp` files. The name of the provided files indicates the type of elements being used and its equivalent counterpart in Abaqus which is used for visualization. Users are highly recommended to go through the input file to understand different element types and element and material properties being used. 
+A few sample input files are provided for different element types to demonstrate the usage of the user element subroutine capabilities in Abaqus. Users can use Abaqus/ CAE to create a standard Abaqus model and export `.inp` files. The name of the provided files indicates the type of elements being used and its equivalent counterpart in Abaqus which is used for visualization. Users are highly recommended to go through the input file to understand different element types and element and material properties being used. 
 
 It is recommended to use the option `Do not use parts and assemblies in input files` from the **model attributes** drop-down menu before generating the input file. This option will generate a cleaner input file. Once the standard input file is exported from Abaqus, the user will need to modify it to use it with the UEL. For isotropic linear elastic elements, users need to specify Young's modulus and Poisson ratio as the real properties. Additional integer properties to be specified are the number of integration points, `nInt`, and the number of variables to be post-processed at the integration points `nPostVars`.
 
@@ -65,11 +62,6 @@ An additional set of elements with the same element connectivity as the user ele
 
 > [!TIP]
 > For larger models, the user can write Python or MATLAB script which will parse the ABAQUS-generated input file and add additional dummy elements. This will ease the pre-processing procedure.
-
-
-**To-do list for example input files:**
-- [ ] Add examples showing how to use body force and traction/ pressure boundary conditions.
-- [ ] Add a Python script to parse a large input file for pre-processing.
 
 
 
