@@ -61,7 +61,7 @@ An additional set of elements with the same element connectivity as the user ele
 > User can specify body force and traction/ pressure type boundary conditions on the dummy elements since they share the same element connectivity, it will be included in the calculation.
 
 > [!TIP]
-> For larger models, the user can write Python or MATLAB script which will parse the ABAQUS-generated input file and add additional dummy elements. This will ease the pre-processing procedure.
+> For larger models, the user can write Python or MATLAB script which will parse the ABAQUS-generated input file and add additional dummy elements. This will ease the pre-processing procedure. For example, check `addElemMech.py` which can parse a simple input file to generate the overlaying dummy elements on the user elements.
 
 
 
