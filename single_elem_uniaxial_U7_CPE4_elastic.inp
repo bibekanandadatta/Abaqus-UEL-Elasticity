@@ -34,7 +34,7 @@
  1,
 **************************************************
 *uel property,elset=all
-** rho, E, nu, nInt, nPostVar
+** E, nu, nInt, nPostVars
 79E9, 0.3, 4, 6
 **************************************************
 ** same element connectivity as the user element

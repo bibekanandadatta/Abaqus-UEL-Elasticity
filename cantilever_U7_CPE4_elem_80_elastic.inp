@@ -326,7 +326,7 @@ _RightSurf_S2, S2
 _TopSurf_S3, S3
 **************************************************
 *uel property,elset=all
-** rho, E, nu, nInt, nPostVar
+** E, nu, nInt, nPostVars
 79E9, 0.3, 4, 6
 **************************************************
 ** define a negligible elastic modulus for the dummy element
