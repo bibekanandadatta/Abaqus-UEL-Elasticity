@@ -151,9 +151,8 @@
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD)
 
       USE PARAMETERS
-
-      INCLUDE 'ABA_PARAM.INC'
-
+      INCLUDE 'ABA_PARAM.INC'   
+     
       DIMENSION RHS(MLVARX,*),AMATRX(NDOFEL,NDOFEL),PROPS(*),
      & SVARS(*),ENERGY(8),COORDS(MCRD,NNODE),UAll(NDOFEL),
      & DUAll(MLVARX,*),Vel(NDOFEL),Accn(NDOFEL),TIME(2),PARAMS(*),
@@ -177,7 +176,6 @@
       character*64 :: jobName
       character*8 :: analysis, abq_procedure
       logical:: nlgeom
-
 
       ! open a debug file for the current job
       call getJobName(jobName,lenJobName)
@@ -204,7 +202,6 @@
         write(*,*) 'element type is not supported', JTYPE
         call xit
       endif
-
 
       ! change the LFLAGS criteria as needed (check abaqus UEL manual)
       if((lflags(1).eq.1).or.(lflags(1).eq.2)) then
@@ -304,6 +301,7 @@
      & ANALYSIS,NDIM,NDI,NSHR,NTENS,NINT,UDOF,UDOFEL)
 
       USE PARAMETERS
+      IMPLICIT NONE
 
       !!!!!!!!!!!!!!! VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!!!
 
@@ -320,11 +318,10 @@
 
       integer:: NDOFEL, NRHS, NSVARS, NPROPS, MCRD, NNODE, JTYPE,
      &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS,
-     &      MLVARX, MDLOAD, JPROPS, NJPROP
-
+     &      MLVARX, MDLOAD, JPROPS, NJPROPS
 
       character*8 :: analysis
-      integer:: nDim, ndi, nshr, ntens, uDOF, uDOFEL
+      integer:: nDim, ndi, nshr, ntens, uDOF, uDOFEL, nInt
       logical:: nlgeom
 
       real*8 :: ID(nDim,nDim), w(nInt), xi(nInt,nDim),
@@ -513,7 +510,6 @@
       ! field-dependent response can also be fieldVar and dfieldVar
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: nsvars, npredf, nDim, ndi, nshr, ntens,
@@ -615,6 +611,7 @@
       ! elemOffset is used between the real mesh and the dummy mesh.
 
       USE PARAMETERS
+      INCLUDE 'ABA_PARAM.INC'
 
       CHARACTER*80 CMNAME,ORNAME
       CHARACTER*3 FLGRAY(15)
@@ -657,6 +654,7 @@
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
       USE PARAMETERS
+      IMPLICIT NONE
 
       integer:: nNode, nInt, intpt
 
@@ -817,7 +815,6 @@
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: nNode, nInt, intpt
@@ -1079,8 +1076,8 @@
       !                     nInt = 1, 4 (quad4) and 4, 9 (quad8)
 
       USE PARAMETERS
-
       IMPLICIT NONE
+
       integer:: nNode, nInt
       real*8 :: x1D(4), w1D(4)
       real*8 :: w(nInt), xi(nInt,2)
@@ -1219,7 +1216,6 @@
       !                     nInt = 1, 8 (hex8) and 8, 27 (hex20)
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: nNode, nInt
@@ -1513,7 +1509,6 @@
       ! this subroutine returns Ainv and detA for a 2D matrix A
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: istat
@@ -1550,7 +1545,6 @@
       ! this subroutine returns Ainv and detA for a 3D matrix A
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: istat
@@ -1591,7 +1585,6 @@
       ! square matrix (nxn) by LU decomposition approach
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer,intent(in)   :: n
@@ -1644,7 +1637,6 @@
       ! this subroutine computes eigenvals and eigenvectors of symmetric 3x3 matrix
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       real*8, intent(in)  :: A(3,3)                   ! input matrix
@@ -1729,7 +1721,6 @@
       ! this subroutines computes square root of a symmetric 3x3 matrix
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       real*8, intent(in) :: A(3,3)
@@ -1756,7 +1747,6 @@
       ! of a 3x3 matrix A (used for deformation gradient)
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       real*8, intent (in)   :: A(3,3)
@@ -1780,7 +1770,6 @@
       ! array to a 6x1 Voigt array of 3D dimensional case
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: ntens
@@ -1810,7 +1799,6 @@
       ! to a 3x1 (plane) or 4x1 (axisymmetry) Voigt array
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: ntens
@@ -1838,7 +1826,6 @@
       ! for unSymmmetric tensor you can use "reshape" function
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: i
@@ -1859,7 +1846,6 @@
       ! for unSymmmetric tensor you can use "reshape" function
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: i
@@ -1882,7 +1868,6 @@
       ! this subroutine transforms a 4x1 Voigt vector to 2x2 symmetric tensor
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: i
@@ -1904,7 +1889,6 @@
       ! this subroutine transforms a 6x1 Voigt vector to 3x3 symmetric tensor
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: i
@@ -1932,7 +1916,6 @@
       ! voigt notation: 11> 1, 22> 2, 33> 3, 23/32> 4, 13/31> 5, 12/21> 6
 
       USE PARAMETERS
-
       IMPLICIT NONE
 
       integer:: i, j, k, l, rw, cl
@@ -1956,17 +1939,6 @@
 
       RETURN
       END SUBROUTINE tangent2matrix
-
-************************************************************************
-************************************************************************
-
-!     ADDITIONAL SUBROUTINES AVAILABEL THROUGH ABAQUS
-!     CONSULT ABAQUS MANUAL FOR THE DETAILS
-
-!     CALL SINV(STRESS,SINV1,SINV2,NDI,NSHR)
-!     CALL SPRINC(S,PS,LSTR,NDI,NSHR)
-!     CALL SPRIND(S,PS,AN,LSTR,NDI,NSHR)
-!     CALL ROTSIG(S,R,SPRIME,LSTR,NDI,NSHR)
 
 ************************************************************************
 ************************************************************************
