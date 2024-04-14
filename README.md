@@ -46,7 +46,7 @@ The isotropic Hooke's law describes the constitutive law for the material. Since
 
 A few sample input files are provided for different element types to demonstrate the usage of the user element subroutine capabilities in Abaqus. Users can use Abaqus/ CAE to create a standard Abaqus model and export `.inp` files. The name of the provided files indicates the type of elements being used and its equivalent counterpart in Abaqus which is used for visualization. Users are highly recommended to go through the input file to understand different element types and element and material properties being used. 
 
-It is recommended to use the option `Do not use parts and assemblies in input files` from the **model attributes** drop-down menu before generating the input file. This option will generate a cleaner input file. Once the standard input file is exported from Abaqus, the user will need to modify it to use it with the UEL. For isotropic linear elastic elements, users need to specify Young's modulus and Poisson ratio as the real properties. Additional integer properties to be specified are the number of integration points, `nInt`, and the number of variables to be post-processed at the integration points `nPostVars`.
+It is recommended to use the option **Do not use parts and assemblies in input files** from the **model attributes** drop-down menu before exporting the input file. This option will generate a cleaner input file which will be easy to modify. Once the standard input file is exported from Abaqus, the user will need to modify it to use it with the UEL. For isotropic linear elastic elements, users need to specify Young's modulus and Poisson ratio as the real properties. Additional integer properties to be specified are the number of integration points, `nInt`, and the number of variables to be post-processed at the integration points `nPostVars`.
 
 
 #### Visualization
@@ -68,7 +68,7 @@ An additional set of elements with the same element connectivity as the user ele
 
 ## Configuring Abaqus and executing the subroutines
 
-To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow this [tutorial](https://bibekanandadatta.com/link-intel-and-vs-abaqus-2020/) if you have not done it yet. There might be other similar resources available to help you with configuring Abaqus for subroutine compilation and execution.
+To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [thus tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it yet. There might be other similar resources available to help you with configuring Abaqus for subroutine compilation and execution.
 
 
 Make sure that the user subroutine and input file are in the same directory. Using the `Abaqus command line terminal` or `cmd` or `PowerShell`, you can execute the following command from the directory to execute the subroutine.
@@ -85,6 +85,9 @@ If you use the PowerShell-based terminal, you can also execute the subroutine by
 For additional information on executing user subroutines, check the Abaqus/ Standard user manual.
 
 
+## Documentation
+
+Documentation for this code will be made available upon request.
 
 
 ## Citation
