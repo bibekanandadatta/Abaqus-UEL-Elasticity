@@ -68,7 +68,7 @@ An additional set of elements with the same element connectivity as the user ele
 
 ## Configuring Abaqus and executing the subroutines
 
-To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [thus tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it yet. There might be other similar resources available to help you with configuring Abaqus for subroutine compilation and execution.
+To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [this tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it yet. There might be other similar resources available to help you with configuring Abaqus for subroutine compilation and execution.
 
 
 Make sure that the user subroutine and input file are in the same directory. Using the `Abaqus command line terminal` or `cmd` or `PowerShell`, you can execute the following command from the directory to execute the subroutine.

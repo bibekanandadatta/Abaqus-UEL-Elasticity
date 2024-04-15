@@ -329,7 +329,6 @@
      &      dxidx(nDim,nDim), dNdx(nNode,nDim), detJ,
      &      Na(nDim,nDim), Nmat(nDim,uDOFEl),
      &      Ba(ntens,nDim), Bmat(ntens,uDOFEl),
-     &      Ga(nDim*nDim,nDim), Gmat(nDim*nDim,uDOFEL),
      &      fieldNode(npredf,nNode), dfieldNode(npredf,nNode),
      &      fieldVar(npredf), dfieldVar(npredf),
      &      Kuu(uDOFEl,uDOFEl), Ru(uDOFEl,1)
@@ -343,10 +342,8 @@
       ! initialize the matrices and vectors
       Na = zero
       Ba = zero
-      Ga = zero
       Nmat = zero
       Bmat  = zero
-      Gmat = zero
       Dmat = zero
       Kuu = zero
       Ru = zero
@@ -410,7 +407,9 @@
         do i=1,nNode
 
           ! form the nodal-level matrices: [Na]
-          Na(1:nDim,1:nDim) = Nxi(i,1)
+          do j = 1, nDim
+            Na(j,j) = Nxi(i,1)
+          enddo
 
           ! form [Ba] matrix: plane stress/ plane strain case
           if (analysis.eq.'PE') then
