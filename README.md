@@ -1,4 +1,4 @@
-# Abaqus UEL Linear Elastic [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11075089.svg)](https://doi.org/10.5281/zenodo.11075089)
+# Abaqus UEL Elasticity
  
  
 This repository contains the Fortran source code for small strain isotropic linear elastic user element (UEL) subroutine and example input files for Abaqus/Standard. Standard displacement-based finite element formulation has been adopted in this subroutine. The purpose of the project is to make users familiar with developing the UEL subroutine in Abaqus/Standard using a standard textbook formulation. This source code contains necessary subroutines related to element operations and matrix algebra.
@@ -82,6 +82,6 @@ Users should consult Abaqus documentation, a standard finite element textbook fo
 
 ## Citation
 
-In case you use this subroutine for educational or research purposes, please cite this source.
+In case you use this subroutine and documentation for educational or research purposes, please cite this source from the following DOI.
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11075089.svg)](https://doi.org/10.5281/zenodo.11075089)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11075088.svg)](https://doi.org/10.5281/zenodo.11075088)
