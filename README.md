@@ -83,3 +83,5 @@ Users should consult Abaqus documentation, a standard finite element textbook fo
 ## Citation
 
 In case you use this subroutine for educational or research purposes, please cite this source.
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11074933.svg)](https://doi.org/10.5281/zenodo.11074933)
