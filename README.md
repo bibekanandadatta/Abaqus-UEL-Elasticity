@@ -15,9 +15,10 @@ If you have `git` installed, you can clone the repository to your local machine 
 ```bash
 git clone https://github.com/bibekananda-datta/Abaqus-UEL-Elasticity.git
 ```
-Alternatively, you can download the files in a `zip` folder in this repository using the `code` drop-down menu on the top right corner
 
-To receive updates in this repository, you can also `fork` the repository and sync as updates are deployed, develop your code by creating a separate branch, and propose updates using the `pull` and `merge` features of GitHub.
+You can also `fork` the repository and sync as updates are deployed, develop your code by creating a separate branch, and propose updates using the `pull` and `merge` features of GitHub.
+
+Alternatively, you can download the files in a `zip` folder in this repository using the `code` drop-down menu on the top right corner. In this approach, you will not receive any bug fix and updates.
 
 
 
@@ -29,8 +30,8 @@ To receive updates in this repository, you can also `fork` the repository and sy
 | `addElemMech.py` | is a Python code that modifies a simple input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
 | `<>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
 | `runAbq.ps1` | is a PowerShell batch file that can execute the user subroutine and specified input file from the PowerShell terminal (optional).
-| Theory.pdf | is a brief summary of the theory and algorithm used to implement the UEL source code. |
-| Abaqus Docs.pdf | A collection of publicly available Abaqus documentation in PDF format which are related to Abaqus UEL. The web versions of these documents are available at https://help.3ds.com. |
+| Elastic.pdf | is a brief summary of the theory and algorithm used to implement the provided source code. |
+| Abaqus Docs.pdf | is a collection of publicly available Abaqus documentation in PDF format which are related to Abaqus UEL. The web versions of these documents are available at https://help.3ds.com. |
 
 
 
@@ -74,10 +75,6 @@ If you use the PowerShell-based terminal, you can also execute the subroutine by
 ./runAbq
 ```
 
-
-## Documentation
-
-Users should consult Abaqus documentation, a standard finite element textbook for solid mechanics, and textbooks and tutorials related to Fortran programming. If further documentation is required, it can be made available upon request.
 
 
 ## Citation
