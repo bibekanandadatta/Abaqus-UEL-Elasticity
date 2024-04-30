@@ -79,6 +79,24 @@ If you use the PowerShell-based terminal, you can also execute the subroutine by
 
 ## Citation
 
-In case you use this subroutine and documentation for educational or research purposes, please cite this source from the following DOI.
+If you use this repository (documentation or source code), please consider citing this from the following:
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11075088.svg)](https://doi.org/10.5281/zenodo.11075088)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11078801.svg)](https://doi.org/10.5281/zenodo.11078801)
+
+APA format citation:
+```
+Datta, B. (2024, April 28). An Abaqus user element (UEL) implementation of linear elastostatics. Zenodo. https://doi.org/10.5281/zenodo.11075088.
+```
+
+BibTeX:
+``` bibtex
+@misc{dattaAbaqusUserElement2024,
+  author       = {Datta, Bibekananda},
+  title        = {{An Abaqus user element (UEL) implementation of linear elastostatics}},
+  month        = apr,
+  year         = 2024,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.11075088},
+  url          = {https://doi.org/10.5281/zenodo.11075088}
+}
+```
