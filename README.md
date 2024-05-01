@@ -24,8 +24,8 @@ Alternatively, you can download the files in a `zip` folder in this repository u
 
 ## Description of the repository
 
-| File name     | Description   |
-| :---------    | :-----------  |
+|   File name  |  Description  |
+| ----------   | ------------- |
 | `uel_mech.for` | is the Fortran source code that implements the isotropic linear elastic user element. The main `UEL` subroutine performs all the initial checks but the main calculations are performed in a subsequent subroutine. The source code includes additional subroutines with Lagrangian interpolation functions for 4 types of 2D continuum elements (Tri3, Tri6, Quad4, and Quad8) and 4 types of 3D continuum elements (Tet4, Tet10, Hex8, Hex20) and Gaussian quadratures with reduced and full integration schemes. Body force and traction boundary conditions were not been included in this implementation, however, these can be applied by overlaying standard Abaqus elements on the user elements (to be discussed in the **Modeling in Abaqus** section). Since Abaqus/Viewer does not provide native support for visualizing user elements, an additional layer of elements with the same element connectivity has been created and results at the integration points of the elements are stored using the `UVARM` subroutine. |
 | `addElemMech.py` | is a Python code that modifies a simple input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
 | `<>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
@@ -83,7 +83,7 @@ If you use this repository (documentation or source code), please consider citin
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11078801.svg)](https://doi.org/10.5281/zenodo.11078801)
 
-APA format citation:
+APA format:
 ```
 Datta, B. (2024, April 28). An Abaqus user element (UEL) implementation of linear elastostatics. Zenodo. https://doi.org/10.5281/zenodo.11075088.
 ```
