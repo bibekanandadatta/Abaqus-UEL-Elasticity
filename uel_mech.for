@@ -1,10 +1,10 @@
-************************************************************************
-*********** ABAQUS/ STANDARD USER ELEMENT SUBROUTINE (UEL) *************
-************************************************************************
+! **********************************************************************
+! ********** ABAQUS/STANDARD USER ELEMENT (UEL) SUBROUTINE *************
+! **********************************************************************
 !                   BIBEKANANDA DATTA (C) FEBRUARY 2024
 !                 JOHNS HOPKINS UNIVERSITY, BALTIMORE, MD
-************************************************************************
-************************************************************************
+! **********************************************************************
+! **********************************************************************
 !                       JTYPE DEFINITION
 !
 !     U1                THREE-DIMENSIONAL TET4 ELEMENT
@@ -17,36 +17,36 @@
 !     U7                PLANE STRAIN QUAD4 ELEMENT
 !     U8                PLANE STRAIN QUAD8 ELEMENT
 !
-************************************************************************
+! **********************************************************************
 !          VOIGT NOTATION CONVENTION FOR STRESS/ STRAIN TENSORS
 !
-!       In this subroutine we adopted the following convention for 
+!       In this subroutine we adopted the following convention for
 !       symmetric stress and strain tensor following Voigt notation
 !       This is different than what is followed by Abaqus/ Standard
 !
 !         sigma11, sigma22, sigma33, sigma23, sigma13, sigma12
 !       strain11, strain22, strain33, strain23, strain13, strain12
 !
-************************************************************************
+! **********************************************************************
 !                       LIST OF MATERIAL PROPERTIES
 !
 !     props(1)   = E                Young's modulus
 !     props(2)   = nu               Poisson ratio
 !
-************************************************************************
+! **********************************************************************
 !                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
 !     jprops(2)   = nPostVars       no of local (int pt) post-processing variables
 !
-************************************************************************
+! **********************************************************************
 !                        POST-PROCESSED VARIABLES
 !                     (follows the convention above)
 !
-!     uvar(1:ntens)                 Cauchy stress tensor components 
+!     uvar(1:ntens)                 Cauchy stress tensor components
 !     uvar(ntens+1:2*ntens)         Small train tensor components
 !
-************************************************************************
+! **********************************************************************
 !               VARIABLES TO BE UPDATED WITHIN THE SUBROUTINE
 !
 !     RHS(i)                        Right hand side vector.
@@ -87,7 +87,7 @@
 !     KSTEP                         Current step number
 !     KINC                          Increment number
 !     JELEM                         User assigned element number in ABAQUS
-!     PARAMS(1:3)                   Time increment parameters alpha, beta, gamma for implicit dynamics
+!     PARAMS(1:3)                   Time increment global_parameters alpha, beta, gamma for implicit dynamics
 !     NDLOAD                        Number of user-defined distributed loads defined for this element
 !     JDLTYP(1:NDLOAD)              Integers n defining distributed load types defined as Un or (if negative) UnNU in input file
 !     ADLMAG(1:NDLOAD)              Distributed load magnitudes
@@ -101,30 +101,47 @@
 !     LFLAGS                        Load type control variable
 !     MLVARX                        Dimension variable
 !     PERIOD                        Time period of the current step
-************************************************************************
+! **********************************************************************
 
 
-************************************************************************
-!                           PARAMETERS MODULE
+! **********************************************************************
+!                        GLOBAL PARAMETERS MODULE
 !
-!     defines double precision real parameters to be used in various
-!     functions and subroutines within and outside of UEL
-************************************************************************
+!     defines real(kind=dp) real global parameters to be used in 
+!     various functions and subroutines within and outside of UEL
+! **********************************************************************
 
-      MODULE PARAMETERS
+      module global_parameters
 
-      double precision:: zero, one, two, three, four, five, six, eight,
-     &      nine, half, third, fourth, fifth, sixth, eighth, eps, pi
+      integer, parameter :: sp = kind(0.0e0), dp=kind(0.0d0)
 
-      parameter( zero = 0.d0, one =  1.d0, two = 2.d0, three = 3.d0,
-     &      four = 4.d0, five = 5.d0, six = 6.d0, eight = 8.d0,
-     &      nine = 9.d0, half= 0.5d0, third = 1.d0/3.d0,
-     &      fourth = 0.25d0, fifth = 1.d0/5.d0, sixth = 1.d0/6.d0,
-     &      eighth = 0.125d0, eps = 1.d-08,
-     &      pi = 3.14159265358979323846264338327950d0)
+      real(kind=dp) :: zero, one, two, three, four, five,
+     &        six, eight, nine, half, third, fourth, 
+     &        fifth, sixth, eighth, eps, pi
+
+      parameter( zero = 0.0_dp, one =  1.0_dp, two = 2.0_dp,
+     &        three = 3.0_dp, four = 4.0_dp, five = 5.0_dp,
+     &        six = 6.0_dp, eight = 8.0_dp, nine = 9.0_dp,
+     &        half= 0.5_dp, third = 1.0_dp/3.0_dp, fourth = 0.25_dp,
+     &        fifth = 1.0_dp/5.0_dp, sixth = 1.0_dp/6.0_dp,
+     &        eighth = 0.125_dp,
+     &        eps = 1.d-09,
+     &        pi = 3.14159265358979323846264338327950_dp)
+
 
       ! no of symmetric and unSymmmetric tensor components
-      integer, parameter:: nSymm = 6, nUnsymmm = 9
+      integer, parameter  :: nSymm = 6, nUnsymmm = 9
+
+      ! identity matrices in 2- and 3-dimensions
+      real(kind=dp) :: ID2(2,2), ID3(3,3)
+      parameter(  ID2 = reshape([ one, zero,
+     &                            zero, one ], shape(ID2) ),
+     &            ID3 = reshape([ one, zero, zero,
+     &                            zero, one, zero,
+     &                            zero, zero, one ], shape(ID3) ) )
+
+      ! debug file unit
+      integer, parameter :: dFile = 15
 
       ! no of total user elements and offset for overlaying elements
       integer, parameter:: numElem = 50000, elemOffset = 100000
@@ -132,27 +149,23 @@
       ! number of elements in the overlaying element set
       ! elemOffset should match with the number used in input file
 
-      double precision, allocatable:: globalPostVars(:,:,:)
+      real(kind=dp), allocatable:: globalPostVars(:,:,:)
 
-      double precision:: ID2(2,2), ID3(3,3)
-      parameter(ID2 = reshape((/1.d0,0.d0,0.d0,1.d0/),(/2,2/)),
-     &          ID3 = reshape((/1.d0,0.d0,0.d0,0.d0,1.d0,0.d0,
-     &                        0.d0,0.d0,1.d0/),(/3,3/)))
+      end module global_parameters
 
-      END MODULE
-
-************************************************************************
-******************** ABAQUS USER ELEMENT SUBROUTINE ********************
-************************************************************************
+! **********************************************************************
+! ****************** ABAQUS USER ELEMENT SUBROUTINE ********************
+! **********************************************************************
 
       SUBROUTINE UEL(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
      & PROPS,NPROPS,COORDS,MCRD,NNODE,Uall,DUall,Vel,Accn,JTYPE,TIME,
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD)
 
-      USE PARAMETERS
-      INCLUDE 'ABA_PARAM.INC'   
-     
+      use global_parameters
+
+      INCLUDE 'ABA_PARAM.INC'
+
       DIMENSION RHS(MLVARX,*),AMATRX(NDOFEL,NDOFEL),PROPS(*),
      & SVARS(*),ENERGY(8),COORDS(MCRD,NNODE),UAll(NDOFEL),
      & DUAll(MLVARX,*),Vel(NDOFEL),Accn(NDOFEL),TIME(2),PARAMS(*),
@@ -160,29 +173,30 @@
      & PREDEF(2,NPREDF,NNODE),LFLAGS(*),JPROPS(*)
 
       ! user coding to define RHS, AMATRX, SVARS, ENERGY, and PNEWDT
-      double precision:: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
+      real(kind=dp) :: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
      &      PROPS, COORDS, DUall, Uall, Vel, Accn, TIME, DTIME,
      &      PARAMS, ADLMAG, PREDEF, DDLMAG, PERIOD
 
-      integer:: NDOFEL, NRHS, NSVARS, NPROPS, MCRD, NNODE, JTYPE,
+      integer :: NDOFEL, NRHS, NSVARS, NPROPS, MCRD, NNODE, JTYPE,
      &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS,
      &      MLVARX, MDLOAD, JPROPS, NJPROPS
 
-      integer:: nInt, nPostVars
-      integer:: nDim, ndi, nshr, ntens, uDOF, uDOFEL
+      integer :: nInt, nPostVars
+      integer :: nDim, ndi, nshr, ntens, uDOF, uDOFEL
 
       integer:: lenJobName,lenOutDir
-      character*256:: outDir, fileName
-      character*64 :: jobName
-      character*8 :: analysis, abq_procedure
-      logical:: nlgeom
+      character(len=256)  :: outDir, fileName
+      character(len=64)   :: jobName
+      character(len=8)    :: analysis, abq_procedure
+      logical :: nlgeom
 
       ! open a debug file for the current job
       call getJobName(jobName,lenJobName)
+      jobName = trim(jobName)
       call getOutDir(outDir,lenOutDir)
       fileName = outDir(1:lenOutDir)//'\aaMSG_'//
-     &     jobName(1:lenJobName)//'.dat'
-      open(unit=15,file=fileName,status='unknown')
+     &          jobName(1:lenJobName)//'.dat'
+      open(unit=dFile, file=fileName, status='unknown')
 
       ! assign parameter specific to analysis and element types
       if ((JTYPE.ge.1).and.(JTYPE.le.4)) then
@@ -198,8 +212,8 @@
         nshr = 1
         ntens = 3
       else
-        write(15,*) 'element type is not supported', JTYPE
-        write(*,*) 'element type is not supported', JTYPE
+        write(dFile,*) 'ERROR > UEL: Element type is available: ', JTYPE
+        write(*,*) 'ERROR > UEL: Element type is available: ', JTYPE
         call xit
       endif
 
@@ -207,8 +221,8 @@
       if((lflags(1).eq.1).or.(lflags(1).eq.2)) then
         ABQ_PROCEDURE = 'STATIC'
       else
-        write(15,*) 'Incorrect STEP procedure in Abaqus', lflags(1)
-        write(*,*) 'Incorrect STEP procedure in Abaqus', lflags(1)
+        write(dFile,*) 'ERROR > UEL: Incorrect procedure: ', lflags(1)
+        write(*,*) 'ERROR > UEL: Incorrect procedure: ', lflags(1)
         call xit
       endif
 
@@ -221,8 +235,10 @@
 
       ! check to see if it's a general step or a linear purturbation step
       if(lflags(4).eq.1) then
-        write(15,*) 'The load step should be a GENERAL step'
-        write(*,*) 'The load step should be a GENERAL step'
+        write(dFile,*) 'ERROR > UEL: ',
+     &     'The step should be a GENERAL step: ', lflags(4)
+        write(*,*) 'ERROR > UEL: ',
+     &      'The step should be a GENERAL step: ', lflags(4)
         call xit
       endif
 
@@ -238,31 +254,31 @@
         allocate(globalPostVars(numElem,nInt,nPostVars))
 
         ! print necessary information to the debug file (one time)
-        write(15,*) '---------------------------------------'
-        write(15,*) '------- ABAQUS SMALL STRAIN UEL -------'
-        write(15,*) '---------------------------------------'
-        write(15,*) jobName
-        write(15,*) '---------------------------------------'
-        write(15,*) '------- PROCEDURE = ', ABQ_PROCEDURE
-        write(15,*) '------- ANALYSIS TYPE   = ', analysis
-        write(15,*) '---------- NLGEOM = ', NLGEOM
-        write(15,*) '------- MODEL DIMENSION = ', nDim
-        write(15,*) '------- ELEMENT NODES   = ', NNODE
-        write(15,*) '---------------------------------------'
-        write(15,*) '-------- INTEGRATION SCHEME -----------'
-        write(15,*) '----------- NINT  = ', nInt
-        write(15,*) '---------------------------------------'
-        write(15,*) '---------- POST-PROCESSING ------------'
-        write(15,*) '--- NO OF ELEMENTS            = ', numElem
-        write(15,*) '--- OVERLAY ELEMENT OFFSET    = ', ElemOffset
-        write(15,*) '--- NO OF VARIABLES AT INT PT = ', nPostVars
-        write(15,*) '---------------------------------------'
+        write(dFile,*) '---------------------------------------'
+        write(dFile,*) '------- ABAQUS SMALL STRAIN UEL -------'
+        write(dFile,*) '---------------------------------------'
+        write(dFile,*) 'Abaqus Job: ', jobName
+        write(dFile,*) '---------------------------------------'
+        write(dFile,*) '------- PROCEDURE = ', ABQ_PROCEDURE
+        write(dFile,*) '------- ANALYSIS TYPE   = ', analysis
+        write(dFile,*) '---------- NLGEOM = ', NLGEOM
+        write(dFile,*) '------- MODEL DIMENSION = ', nDim
+        write(dFile,*) '------- ELEMENT NODES   = ', NNODE
+        write(dFile,*) '---------------------------------------'
+        write(dFile,*) '-------- INTEGRATION SCHEME -----------'
+        write(dFile,*) '----------- NINT  = ', nInt
+        write(dFile,*) '---------------------------------------'
+        write(dFile,*) '---------- POST-PROCESSING ------------'
+        write(dFile,*) '--- NO OF ELEMENTS            = ', numElem
+        write(dFile,*) '--- OVERLAY ELEMENT OFFSET    = ', ElemOffset
+        write(dFile,*) '--- NO OF VARIABLES AT INT PT = ', nPostVars
+        write(dFile,*) '---------------------------------------'
 
         ! print necessary information to the screen now (one time)
         write(*,*) '---------------------------------------'
         write(*,*) '------- ABAQUS SMALL STRAIN UEL -------'
         write(*,*) '---------------------------------------'
-        write(*,*) jobName
+        write(*,*) 'Abaqus Job: ', jobName
         write(*,*) '---------------------------------------'
         write(*,*) '------- PROCEDURE = ', ABQ_PROCEDURE
         write(*,*) '------- ANALYSIS TYPE   = ', analysis
@@ -288,20 +304,23 @@
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD,
      & ANALYSIS,NDIM,NDI,NSHR,NTENS,NINT,UDOF,UDOFEL)
 
+
       RETURN
+      
       END SUBROUTINE UEL
 
-************************************************************************
-************************************************************************
+! **********************************************************************
+! **********************************************************************
 
-      SUBROUTINE uelMech(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
+      subroutine uelMech(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
      & PROPS,NPROPS,COORDS,MCRD,NNODE,Uall,DUall,Vel,Accn,JTYPE,TIME,
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD,
      & ANALYSIS,NDIM,NDI,NSHR,NTENS,NINT,UDOF,UDOFEL)
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       !!!!!!!!!!!!!!! VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!!!
 
@@ -312,7 +331,7 @@
      & PREDEF(2,NPREDF,NNODE),LFLAGS(*),JPROPS(*)
 
       ! user coding to define RHS, AMATRX, SVARS, ENERGY, and PNEWDT
-      double precision:: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
+      real(kind=dp):: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
      &      PROPS, COORDS, DUall, Uall, Vel, Accn, TIME, DTIME,
      &      PARAMS, ADLMAG, PREDEF, DDLMAG, PERIOD
 
@@ -320,11 +339,11 @@
      &      KSTEP, KINC, JELEM, NDLOAD, JDLTYP, NPREDF, LFLAGS,
      &      MLVARX, MDLOAD, JPROPS, NJPROPS
 
-      character*8 :: analysis
-      integer:: nDim, ndi, nshr, ntens, uDOF, uDOFEL, nInt
-      logical:: nlgeom
+      character(len=8) :: analysis
+      integer :: nDim, ndi, nshr, ntens, uDOF, uDOFEL, nInt
+      logical :: nlgeom
 
-      double precision:: ID(nDim,nDim), w(nInt), xi(nInt,nDim),
+      real(kind=dp):: ID(nDim,nDim), w(nInt), xi(nInt,nDim),
      &      Nxi(nNode,1), dNdxi(nNode,nDim), dxdxi(nDim,nDim),
      &      dxidx(nDim,nDim), dNdx(nNode,nDim), detJ,
      &      Na(nDim,nDim), Nmat(nDim,uDOFEl),
@@ -333,8 +352,8 @@
      &      fieldVar(npredf), dfieldVar(npredf),
      &      Kuu(uDOFEl,uDOFEl), Ru(uDOFEl,1)
 
-      double precision:: stran(ntens,1), dstran(ntens,1), 
-     &      stranVoigt(nSymm,1), dstranVoigt(nSymm,1), 
+      real(kind=dp):: stran(ntens,1), dstran(ntens,1),
+     &      stranVoigt(nSymm,1), dstranVoigt(nSymm,1),
      &      stress(ntens,1), Dmat(ntens,ntens)
 
       integer:: i, j, intPt, istat
@@ -368,8 +387,8 @@
         ID = ID3
         call gaussQuadrtr3(nNode,nInt,w,xi)
       else
-        write(15,*) 'incorrect model dimension', nDim
-        write(*,*) 'incorrect model dimension', nDim
+        write(dFile,*) 'ERROR > uelMech: Incorrect dimension: ', nDim
+        write(*,*) 'ERROR > uelMech: Incorrect dimension: ', nDim
         call xit
       endif
 
@@ -382,8 +401,8 @@
         elseif (nDim.eq.3) then
           call interpFunc3(nNode,nInt,intPt,xi,Nxi,dNdxi)
         else
-          write(15,*) 'incorrect model dimension', nDim
-          write(*,*) 'incorrect model dimension', nDim
+          write(dFile,*) 'ERROR > uelMech: Incorrect dimension: ', nDim
+          write(*,*) 'ERROR > uelMech: Incorrect dimension: ', nDim
           call xit
         endif
 
@@ -397,11 +416,13 @@
         endif
 
         if (istat .eq. 0) then
-          write(15,*) 'ill-condiitoned element jacobian', jElem, intPt
-          write(*,*) 'ill-condiitoned element jacobian', jElem, intPt
+          write(dFile,*) 'WARNING > uelMech: Element jacobian: ', 
+     &                    jElem, intPt
+          write(*,*) 'WARNING > uelMech: Element jacobian: ', 
+     &                    jElem, intPt
         endif
 
-        dNdx    = matmul(dNdxi,dxidx)       ! calculate dNdx
+        dNdx = matmul(dNdxi,dxidx)       ! calculate dNdx
 
         ! loop over all the nodes (internal loop)
         do i=1,nNode
@@ -415,25 +436,20 @@
           if (analysis.eq.'PE') then
             Ba(1,1) = dNdx(i,1)
             Ba(2,2) = dNdx(i,2)
-            Ba(3,1) = dNdx(i,2)
-            Ba(3,2) = dNdx(i,1)
+            Ba(3,1:nDim) = [dNdx(i,2), dNdx(i,1)]
 
           ! form [Ba] matrix: 3D case
           elseif (analysis.eq.'3D') then
             Ba(1,1) = dNdx(i,1)
             Ba(2,2) = dNdx(i,2)
             Ba(3,3) = dNdx(i,3)
-            
-            Ba(4,2) = dNdx(i,3)
-            Ba(4,3) = dNdx(i,2)
-            Ba(5,1) = dNdx(i,3)
-            Ba(5,3) = dNdx(i,1)
-            Ba(6,1) = dNdx(i,2)
-            Ba(6,2) = dNdx(i,1)
+            Ba(4,1:nDim) = [zero, dNdx(i,3), dNdx(i,2)]
+            Ba(5,1:nDim) = [dNdx(i,3), zero,  dNdx(i,1)]
+            Ba(6,1:nDim) = [dNdx(i,2), dNdx(i,1), zero]
 
           else
-            write(15,*) 'wrong analysis type', analysis
-            write(*,*) 'wrong analysis type', analysis
+            write(dFile,*) 'ERROR > uelMech: Wrong analysis: ', analysis
+            write(*,*)  'ERROR > uelMech: Wrong analysis: ', analysis
             call xit
           endif
 
@@ -452,8 +468,8 @@
         dstran = matmul(Bmat,reshape(DUall(1:uDOFEl,1),(/uDOFEL,1/)))
 
         call voigtAugment(stran,stranVoigt,ntens)
-        call voigtAugment(stran,stranVoigt,ntens)
-      
+        call voigtAugment(dstran,dstranVoigt,ntens)
+
         ! interpolate additional field variable at the integration point
         ! (as shown below - not tested)
     !     fieldVar = dot_product(reshape(Nxi,(/nNode/)),
@@ -489,13 +505,14 @@
       RHS(1:MLVARX,1) = Ru(1:uDOFEl,1)
 
 
-      RETURN
-      END SUBROUTINE uelMech
+      return 
 
-************************************************************************
-************************************************************************
+      end subroutine uelMech
 
-      SUBROUTINE umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
+! **********************************************************************
+! **********************************************************************
+
+      subroutine umatElastic(stress,Dmat,stranVoigt,dstranVoigt,
      &          svars,nsvars,time,dtime,fieldVar,dfieldVar,npredf,
      &          nDim,ndi,nshr,ntens,jelem,intPt,coords,nNode,kstep,
      &          kinc,props,nprops,jprops,njprops,analysis)
@@ -506,24 +523,25 @@
       ! by using the state variable SVARS
       ! field-dependent response can also be fieldVar and dfieldVar
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: nsvars, npredf, nDim, ndi, nshr, ntens,
      &    jelem, intPt, nNode, kstep, kinc, nprops, njprops
 
-      double precision:: props(1:nprops), stran(ntens,1), 
-     &    stranVoigt(nSymm,1), dstranVoigt(nSymm,1), 
-     &    stress(ntens,1), dmat(ntens,ntens), 
+      real(kind=dp):: props(1:nprops), stran(ntens,1),
+     &    stranVoigt(nSymm,1), dstranVoigt(nSymm,1),
+     &    stress(ntens,1), dmat(ntens,ntens),
      &    svars(1:nsvars), coords(ndim,nnode), time(2), dtime,
      &    fieldVar(npredf), dfieldVar(npredf)
 
       integer:: jprops(1:njprops)
-      character*8 :: analysis
+      character(len=8) :: analysis
 
 
       ! variables local to the subroutine
-      double precision:: E, nu, lambda, mu, Cmat(3,3,3,3), 
+      real(kind=dp):: E, nu, lambda, mu, Cmat(3,3,3,3),
      &          VoigtMat(nSymm,nSymm), stressVoigt(nSymm,1)
       integer:: nInt, nlocalSdv
 
@@ -584,23 +602,25 @@
         stress = stressVoigt
         stran = stranVoigt
       else
-        write(15,*) 'wrong analysis type', analysis
-        write(*,*) 'wrong analysis type', analysis
+        write(dFile,*) 'ERROR > umatElastic: wrong analysis type: ', 
+     &                  analysis
+        write(*,*) 'ERROR > umatElastic: wrong analysis type: ',  
+     &                  analysis
         call xit
       endif
-      
+
       ! save the variables to be post-processed in globalPostVars
       globalPostVars(jelem,intPt,1:ntens) = stress(1:ntens,1)
       globalPostVars(jelem,intPt,ntens+1:2*ntens) = stran(1:ntens,1)
 
-      RETURN
+      return
 
-      END SUBROUTINE umatElastic
+      end subroutine umatElastic
 
-************************************************************************
-************************************************************************
+! **********************************************************************
+! **********************************************************************
 
-       SUBROUTINE UVARM(UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,
+       subroutine UVARM(UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,
      & NUVARM,NOEL,NPT,LAYER,KSPT,KSTEP,KINC,NDI,NSHR,COORD,
      & JMAC,JMATYP,MATLAYO,LACCFLA)
 
@@ -608,7 +628,8 @@
       ! onto the overlaying mesh for viewing. Note that an offset of
       ! elemOffset is used between the real mesh and the overlaying mesh.
 
-      USE PARAMETERS
+      use global_parameters
+
       INCLUDE 'ABA_PARAM.INC'
 
       CHARACTER*80 CMNAME,ORNAME
@@ -617,47 +638,95 @@
       DIMENSION ARRAY(15),JARRAY(15),JMAC(*),JMATYP(*),COORD(*)
 
       ! the dimensions of the variables FLGRAY, ARRAY and JARRAY
-      ! must be set equal to or greater than 15.  
-      
+      ! must be set equal to or greater than 15.
+
       ! explicityly define the type for uvar to avoid issues
-      double precision:: uvar
+      real(kind=dp):: uvar
 
       uvar(1:nuvarm) = globalPostVars(noel-elemOffset,npt,1:nuvarm)
 
-      RETURN
+      return
 
-      END SUBROUTINE UVARM
+      end subroutine UVARM
 
-************************************************************************
-************************************************************************
+! **********************************************************************
+! **********************************************************************
 
 
-************************************************************************
-!                      ELEMENT UTILITY SECTION
-!
-!     SUBROUTINE to evaluate shape functions at the gauss pts
-!     SUBROUTINE to calculate Gauss Pts in 2D and 3D elements
-!     ----- currently supports:    (a) tri elements (3 and 6 nodes) : full integration
-!                                  (b) quad elements (4 and 8 nodes): reduced and full integration
-!                                  (c) tet elements (4 and 10 nodes): full integration
-!                                  (d) hex elements (8 and 20 nodes): reduced and full integration
-************************************************************************
+! **********************************************************************
+! **************** INTERPOLATION FUNCTION SUBROUTINES ******************
+! **********************************************************************
+!  available elements:    (a) 1D bar/truss element (2 and 3 nodes)
+!                         (b) 2D tri elements (3 and 6 nodes) 
+!                         (c) 2D quad elements (4 and 8 nodes)
+!                         (d) 3D tet elements (4 and 10 nodes)
+!                         (e) 3D hex elements (8 and 20 nodes)
+! **********************************************************************
 
-      SUBROUTINE interpFunc2(nNode,nInt,intPt,xi_int,Nxi,dNdxi)
+      subroutine interpFunc1(nNode,nInt,intPt,xi_int,Nxi,dNdxi)
+      ! this subroutine evaluates 1D shape functions
+      ! available 1D element is: 2 and 3 noded bar
 
-      ! this subroutine calculates shape function of 2D elements at gauss pts
-      ! available 2D elements are: 3 node tri, 6 node tri, 4 node quad, 8 node quad
-        
-      ! Nxi(i)          = shape function of node i at the intpt.
+      ! Nxi(i)          = shape function of node i at the intpt
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
+      
+      integer:: nNode, nInt, intpt
+      
+      real(kind=dp) :: xi, xi_int(nInt,1), Nxi(nNode), dNdxi(nNode,1)
+
+      xi    = xi_int(intpt,1)
+
+      if (nNode .eq. 2) then      ! 2 node linear bar element
+        ! shape functions
+        Nxi(1) = half*(one - xi)
+        Nxi(2) = half*(one + xi)
+
+        ! the first derivatives of the shape functions dN/dxi (2x1)
+        dNdxi(1,1)  = -half
+        dNdxi(2,1)  = half
+
+      elseif (nNode .eq. 3) then  ! 3 node quadratic bar element
+        ! shape functions
+        Nxi(1)  = -half*xi*(one - xi)
+        Nxi(2)  = one-xi**two
+        Nxi(3)  = half*xi*(one + xi)
+
+        ! the first derivatives of the shape functions dN/dxi (3x1)
+        dNdxi(1,1)  = -half+xi
+        dNdxi(2,1)  = -two*xi
+        dNdxi(3,1)  = half+xi
+
+      else
+        write(dFile,*) 'ERROR > interpFunc1: Element unavailable.'
+        write(*,*) 'ERROR > interpFunc1: Element unavailable.'
+        call xit
+      endif
+
+      return
+
+      end subroutine interpFunc1
+
+! **********************************************************************
+
+      subroutine interpFunc2(nNode,nInt,intPt,xi_int,Nxi,dNdxi)
+      ! this subroutine calculates shape function of 2D elements
+      ! available 2D elements are: 3 and 6 node tri, 4 and 8 node quad
+        
+      ! Nxi(i)          = shape function of node i at the intpt
+      ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
+
+      use global_parameters
+
+      implicit none
 
       integer:: nNode, nInt, intpt
 
-      double precision:: xi_int(nInt,2), Nxi(nNode), dNdxi(nNode,2)
-      double precision:: xi, eta, lam
+      real(kind=dp):: xi_int(nInt,2), Nxi(nNode), dNdxi(nNode,2)
+      real(kind=dp):: xi, eta, lam
 
       ! location in the master element
       xi    = xi_int(intpt,1)
@@ -794,31 +863,32 @@
         dNdxi(8,2) = -eta*(one - xi)
 
       else
-        write(15,*) 'element is not supported for 2D analysis', nNode
-        write(*,*) 'element is not supported for 2D analysis', nNode
+        write(dFile,*) 'ERROR > interpFunc2: Element unavailable.'
+        write(*,*) 'ERROR > interpFunc2: Element unavailable.'
         call xit
       endif
 
-      RETURN
-      END SUBROUTINE interpFunc2
+      return
 
-************************************************************************
+      end subroutine interpFunc2
+
+! **********************************************************************
 
       subroutine interpFunc3(nNode,nInt,intPt,xi_int,Nxi,dNdxi)
+      ! this subroutine calculates shape function of 3D elements
+      ! available 3D elements are: 4 and 10 node tet, 8 and 20 node hex.
 
-      ! this subroutine calculates shape function of 3D elements at gauss pts
-      ! available 3D elements are: 4 node tet, 10 node ter, 8 node hex.
-
-      ! Nxi(i)          = shape function of node i at the intpt.
+      ! Nxi(i)          = shape function of node i at the intpt
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: nNode, nInt, intpt
 
-      double precision:: xi_int(nInt,3), Nxi(nNode), dNdxi(nNode,3)
-      double precision:: xi, eta, zeta, lam
+      real(kind=dp):: xi_int(nInt,3), Nxi(nNode), dNdxi(nNode,3)
+      real(kind=dp):: xi, eta, zeta, lam
 
       ! Nxi(i)          = shape function of node i at the intpt.
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
@@ -1058,303 +1128,22 @@
         dNdxi(20,2) = (one-xi)*(one-zeta**two)/four
         dNdxi(20,3) = -zeta*(one-xi)*(one+eta)/two
       else
-        write(15,*) 'element is not supported for 3D analysis', nNode
-        write(*,*) 'element is not supported for 3D analysis', nNode
+        write(dFile,*) 'ERROR > interpFunc3: Element unavailable.'
+        write(*,*) 'ERROR > interpFunc1: Element unavailable.'
         call xit
       endif
 
-      RETURN
-      END SUBROUTINE interpFunc3
+      return
+      end subroutine interpFunc3
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE gaussQuadrtr2(nNode,nInt,w,xi)
-
-      ! this subroutines returns the weights and
-      ! gauss point coordinate of 2D Lagrangian elements
-      ! currently supports: nInt = 1 (tri3) and 3 (tri6)
-      !                     nInt = 1, 4 (quad4) and 4, 9 (quad8)
-
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      integer:: nNode, nInt
-      double precision:: x1D(4), w1D(4)
-      double precision:: w(nInt), xi(nInt,2)
-
-      w  = zero
-      xi = zero
-
-      if (nNode.eq.3) then      ! plane tri3 elements (full integration)
-        if (nInt.eq.1) then
-          w(1) = half
-          xi(1,1) = third
-          xi(2,1) = third
-        else
-          write(15,*) 'wrong Gauss points for tri3 element', nInt
-          write(*,*) 'wrong Gauss points for tri3 element', nInt
-          call xit
-        endif
-
-      elseif (nNode.eq.6) then  ! plane tri6 elements (full integration)
-        if (nInt.eq.3) then
-          w(1:3) = sixth
-
-          xi(1,1) = half
-          xi(1,2) = half
-          xi(2,1) = zero
-          xi(2,2) = half
-          xi(3,1) = half
-          xi(3,2) = zero
-        else
-          write(15,*) 'wrong Gauss points for tri6 element', nInt
-          write(*,*) 'wrong Gauss points for tri6 element', nInt
-          call xit
-        endif
-        
-      elseif((nNode.eq.4)) then ! plane quad4 element
-
-        if (nInt.eq.1) then     ! reduced integration for quad4
-          w = four
-
-          xi(1,1) = zero
-          xi(1,2) = zero
-
-        elseif (nInt.eq.4) then ! full integration for quad4
-
-          w(1:4) = one
-
-          x1D(1) = dsqrt(third)
-          xi(1,1) = -x1D(1)
-          xi(1,2) = -x1D(1)
-          xi(2,1) = x1D(1)
-          xi(2,2) = -x1D(1)
-          xi(3,1) = -x1D(1)
-          xi(3,2) = x1D(1)
-          xi(4,1) = x1D(1)
-          xi(4,2) = x1D(1)
-        else
-          write(15,*) 'wrong Gauss points for quad4 element', nInt
-          write(*,*) 'wrong Gauss points for quad4 element', nInt
-          call xit
-        endif
-
-      elseif (nNode.eq.8) then  ! plane quad8 element
-        
-        if (nInt.eq.4) then     ! reduced integration for quad8
-
-          w(1:4) = one
-
-          x1D(1) = dsqrt(third)
-          xi(1,1) = -x1D(1)
-          xi(1,2) = -x1D(1)
-          xi(2,1) = x1D(1)
-          xi(2,2) = -x1D(1)
-          xi(3,1) = -x1D(1)
-          xi(3,2) = x1D(1)
-          xi(4,1) = x1D(1)
-          xi(4,2) = x1D(1)
-
-        elseif(nInt.eq.9) then  ! full integration for quad8
-          w1D(1) = (five/nine)*(five/nine)
-          w1D(2) = (five/nine)*(eight/nine)
-          w1D(3) = (eight/nine)*(eight/nine)
-
-          w(1) = w1D(1)
-          w(2) = w1D(2)
-          w(3) = w1D(1)
-          w(4) = w1D(2)
-          w(5) = w1D(3)
-          w(6) = w1D(2)
-          w(7) = w1D(1)
-          w(8) = w1D(2)
-          w(9) = w1D(1)
-
-          x1D(1) = dsqrt(three/five)
-          xi(1,1) = -x1D(1)
-          xi(1,2) = -x1D(1)
-          xi(2,1) = zero
-          xi(2,2) = -x1D(1)
-          xi(3,1) = x1D(1)
-          xi(3,2) = -x1D(1)
-          xi(4,1) = -x1D(1)
-          xi(4,2) = zero
-          xi(5,1) = zero
-          xi(5,2) = zero
-          xi(6,1) = x1D(1)
-          xi(6,2) = zero
-          xi(7,1) = -x1D(1)
-          xi(7,2) = x1D(1)
-          xi(8,1) = zero
-          xi(8,2) = x1D(1)
-          xi(9,1) = x1D(1)
-          xi(9,2) = x1D(1)
-
-        else
-          write(15,*) 'wrong Gauss points for quad8 element', nInt
-          write(*,*) 'wrong Gauss points for quad8 element', nInt
-          call xit
-        endif
-
-      else
-        write(15,*) 'elements not supported for 2D analysis', nNode
-        write(*,*) 'elements not supported for 2D analysis', nNode
-        call xit
-      endif
-
-
-      RETURN
-      END SUBROUTINE gaussQuadrtr2
-
-************************************************************************
-
-      SUBROUTINE gaussQuadrtr3(nNode,nInt,w,xi)
-
-      ! this subroutines returns the weights and
-      ! gauss point coordinate of 3D Lagrangian elements
-      ! currently supports: nInt = 1 (tet4) and 4 (tet10)
-      !                     nInt = 1, 8 (hex8) and 8, 27 (hex20)
-
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      integer:: nNode, nInt
-      integer:: i, j, k, n
-      double precision:: x1D(4), w1D(4)
-      double precision:: w(nInt), xi(nInt,3)
-
-      w  = zero
-      xi = zero
-      
-      if(nNode.eq.4) then       ! 3D tet4 element (full integration)
-        if(nInt.eq.1) then
-          w(1) = sixth
-          xi(1,1:3) = fourth
-
-        else
-          write(15,*) 'wrong Gauss points for tet4 element', nInt
-          write(*,*) 'wrong Gauss points for tet4 element', nInt
-          call xit
-        endif
-
-      elseif(nNode.eq.10) then  ! 3D tet10 element (full integration)
-
-        if (nInt.eq.4) then
-          w(1:4) = one/24.0d0
-
-          x1D(1) = 0.58541020d0
-          x1D(2) = 0.13819660d0
-
-          xi(1,1) = x1D(1)
-          xi(2,1) = x1D(2)
-          xi(3,1) = x1D(2)
-          xi(1,2) = x1D(2)
-          xi(2,2) = x1D(1)
-          xi(3,2) = x1D(2)
-          xi(1,3) = x1D(2)
-          xi(2,3) = x1D(2)
-          xi(3,3) = x1D(1)
-          xi(4,1) = x1D(2)
-          xi(4,2) = x1D(2)
-          xi(4,3) = x1D(2)
-
-        else
-          write(15,*) 'wrong Gauss points for tet10 element', nInt
-          write(*,*) 'wrong Gauss points for tet10 element', nInt
-          call xit
-        endif
-
-      elseif(nNode.eq.8) then   ! 3D hex8 element
-
-        if(nInt.eq.1) then      ! reduced integration for hex8
-          w(1) = eight
-          xi(1,1:3) = zero
-
-        elseif(nInt.eq.8) then  ! full-integration for hex8
-          w(1:8) = one
-
-          x1D(1) = -dsqrt(third)
-          x1D(2) = dsqrt(third)
-         
-          do k = 1,2
-            do j = 1,2
-              do i = 1,2
-                n = 4*(k-1) + 2*(j-1) + i
-                xi(n,1) = x1D(i)
-                xi(n,2) = x1D(j)
-                xi(n,3) = x1D(k)
-              end do
-            end do
-          end do
-
-        else
-          write(15,*) 'wrong Gauss points for hex8 element', nInt
-          write(*,*) 'wrong Gauss points for hex8 element', nInt
-          call xit
-        endif
-
-      elseif(nNode.eq.20) then  ! 3D hex20 element
-        
-        if (nInt.eq.8) then     ! reduced integration for hex20
-          w(1:8) = one
-
-          x1D(1) = -dsqrt(third)
-          x1D(2) = dsqrt(third)
-         
-          do k = 1,2
-            do j = 1,2
-              do i = 1,2
-                n = 4*(k-1) + 2*(j-1) + i
-                xi(n,1) = x1D(i)
-                xi(n,2) = x1D(j)
-                xi(n,3) = x1D(k)
-              end do
-            end do
-          end do
-        
-        elseif(nInt.eq.27) then ! full integration for hex20
-          w1D(1) = five/nine
-          w1D(2) = eight/nine
-          w1D(3) = w1D(1)
-
-          x1D(1) = -dsqrt(0.6d0)
-          x1D(2) = zero
-          x1D(3) = dsqrt(0.6d0)
-          do k = 1,3
-            do j = 1,3
-              do i = 1,3
-                n = 9*(k-1) + 3*(j-1) + i
-                xi(n,1) = x1D(i)
-                xi(n,2) = x1D(j)
-                xi(n,3) = x1D(k)
-                w(n) = w1D(i)*w1D(j)*w1D(k)
-              end do
-            end do
-          end do
-
-        else
-          write(15,*) 'wrong Gauss points for hex20 element', nInt
-          write(*,*) 'wrong Gauss points for hex20 element', nInt
-          call xit
-        endif
-
-      else
-        write(15,*) 'element is not supported for 3D analysis', nNode
-        write(*,*) 'element is not supported for 3D analysis', nNode
-        call xit
-      endif
-
-      RETURN
-      END SUBROUTINE gaussQuadrtr3
-
-************************************************************************
-
-      SUBROUTINE faceNodes(nDim,nNode,face,list,nFaceNodes)
-      ! this subroutine RETURNs the list of nodes on an
+      subroutine faceNodes(nDim,nNode,face,list,nFaceNodes)
+      ! this subroutine returns the list of nodes on an
       ! element face for standard 2D and 3D Lagrangian elements
       ! this subroutine is useful for applying traction-type BC
 
-      IMPLICIT NONE
+      implicit none
 
       integer, intent (in) :: nDim, nNode, face
       integer, intent (out):: list(*)
@@ -1427,44 +1216,388 @@
         endif
       endif
 
-      RETURN
+      return
 
-      END SUBROUTINE faceNodes
+      end subroutine faceNodes
 
-************************************************************************
+! **********************************************************************
+
+! **********************************************************************
+! ***************** GAUSSIAN QUADRATURE SUBROUTINES ********************
+! **********************************************************************
+! integration schemes:  (a) reduced and full integration: bar elements
+!                       (b) full integration: tri and tet elements
+!                       (c) reduced and full integration: quad and hex elements
+! **********************************************************************
+      subroutine gaussQuadrtr1(nNode,nInt,w,xi)
+
+      use global_parameters
+
+      implicit none
+
+      integer:: nNode, nInt
+      real(kind=dp):: w(nInt), xi(nInt,1)
+
+      w = zero
+      xi = zero
+
+      if (nNode.eq.2) then
+        if (nInt.eq.1) then       ! full integration for bar2
+          w = zero
+          xi = two
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
+          call xit
+        endif           ! end int for 2-noded bar
+
+      elseif (nNode.eq.3) then
+        if (nInt .eq. 2) then     ! reduced integration for bar3
+          w(1:2)  = one
+          xi(1,1) = -sqrt(third)
+          xi(2,1) = sqrt(third)
+        elseif (nInt.eq.3) then   ! full integration for bar3
+          w(1) = five/nine
+          w(2) = eight/nine
+          w(3) = five/nine
+          xi(1,1) = -sqrt(three/five)
+          xi(2,1) = zero
+          xi(3,1) = sqrt(three/five)
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
+          call xit
+        endif           ! end int for 3-noded bar
+
+      else
+        write(dFile,*) 'ERROR > gaussQuadrtr1: Element unavailable.'
+        write(*,*) 'ERROR > gaussQuadrtr1: Element unavailable.'
+        call xit
+      endif           
+
+      return
+
+      end subroutine gaussQuadrtr1
+
+! **********************************************************************
+
+      subroutine gaussQuadrtr2(nNode,nInt,w,xi)
+      ! this subroutines returns the weights and
+      ! gauss point coordinate of 2D Lagrangian elements
+      ! currently supports: nInt = 1 (tri3) and 3 (tri6)
+      !                     nInt = 1, 4 (quad4) and 4, 9 (quad8)
+
+      use global_parameters
+      implicit none
+
+      integer:: nNode, nInt
+      real(kind=dp):: x1D(4), w1D(4)
+      real(kind=dp):: w(nInt), xi(nInt,2)
+
+      w  = zero
+      xi = zero
+
+      if (nNode.eq.3) then      ! plane tri3 elements (full integration)
+        if (nInt.eq.1) then
+          w(1) = half
+          xi(1,1) = third
+          xi(2,1) = third
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr1: Wrong Gauss points.'
+          call xit
+        endif
+
+      elseif (nNode.eq.6) then  ! plane tri6 elements (full integration)
+        if (nInt.eq.3) then
+          w(1:3) = sixth
+
+          xi(1,1) = half
+          xi(1,2) = half
+          xi(2,1) = zero
+          xi(2,2) = half
+          xi(3,1) = half
+          xi(3,2) = zero
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          call xit
+        endif
+        
+      elseif((nNode.eq.4)) then ! plane quad4 element
+
+        if (nInt.eq.1) then     ! reduced integration for quad4
+          w = four
+
+          xi(1,1) = zero
+          xi(1,2) = zero
+
+        elseif (nInt.eq.4) then ! full integration for quad4
+
+          w(1:4) = one
+
+          x1D(1) = sqrt(third)
+          xi(1,1) = -x1D(1)
+          xi(1,2) = -x1D(1)
+          xi(2,1) = x1D(1)
+          xi(2,2) = -x1D(1)
+          xi(3,1) = -x1D(1)
+          xi(3,2) = x1D(1)
+          xi(4,1) = x1D(1)
+          xi(4,2) = x1D(1)
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          call xit
+        endif
+
+      elseif (nNode.eq.8) then  ! plane quad8 element
+        
+        if (nInt.eq.4) then     ! reduced integration for quad8
+
+          w(1:4) = one
+
+          x1D(1) = sqrt(third)
+          xi(1,1) = -x1D(1)
+          xi(1,2) = -x1D(1)
+          xi(2,1) = x1D(1)
+          xi(2,2) = -x1D(1)
+          xi(3,1) = -x1D(1)
+          xi(3,2) = x1D(1)
+          xi(4,1) = x1D(1)
+          xi(4,2) = x1D(1)
+
+        elseif(nInt.eq.9) then  ! full integration for quad8
+          w1D(1) = (five/nine)*(five/nine)
+          w1D(2) = (five/nine)*(eight/nine)
+          w1D(3) = (eight/nine)*(eight/nine)
+
+          w(1) = w1D(1)
+          w(2) = w1D(2)
+          w(3) = w1D(1)
+          w(4) = w1D(2)
+          w(5) = w1D(3)
+          w(6) = w1D(2)
+          w(7) = w1D(1)
+          w(8) = w1D(2)
+          w(9) = w1D(1)
+
+          x1D(1) = sqrt(three/five)
+          xi(1,1) = -x1D(1)
+          xi(1,2) = -x1D(1)
+          xi(2,1) = zero
+          xi(2,2) = -x1D(1)
+          xi(3,1) = x1D(1)
+          xi(3,2) = -x1D(1)
+          xi(4,1) = -x1D(1)
+          xi(4,2) = zero
+          xi(5,1) = zero
+          xi(5,2) = zero
+          xi(6,1) = x1D(1)
+          xi(6,2) = zero
+          xi(7,1) = -x1D(1)
+          xi(7,2) = x1D(1)
+          xi(8,1) = zero
+          xi(8,2) = x1D(1)
+          xi(9,1) = x1D(1)
+          xi(9,2) = x1D(1)
+
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          call xit
+        endif
+
+      else
+        write(dFile,*) 'ERROR > gaussQuadrtr2: Element unavailable.'
+        write(*,*) 'ERROR > gaussQuadrtr2: Element unavailable.'
+        call xit
+      endif
+
+
+      return
+      end subroutine gaussQuadrtr2
+
+! **********************************************************************
+
+      subroutine gaussQuadrtr3(nNode,nInt,w,xi)
+      ! this subroutines returns the weights and
+      ! gauss point coordinate of 3D Lagrangian elements
+      ! currently supports: nInt = 1 (tet4) and 4 (tet10)
+      !                     nInt = 1, 8 (hex8) and 8, 27 (hex20)
+
+      use global_parameters
+
+      implicit none
+
+      integer:: nNode, nInt
+      integer:: i, j, k, n
+      real(kind=dp):: x1D(4), w1D(4)
+      real(kind=dp):: w(nInt), xi(nInt,3)
+
+      w  = zero
+      xi = zero
+      
+      if(nNode.eq.4) then       ! 3D tet4 element (full integration)
+        if(nInt.eq.1) then
+          w(1) = sixth
+          xi(1,1:3) = fourth
+
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          call xit
+        endif
+
+      elseif(nNode.eq.10) then  ! 3D tet10 element (full integration)
+
+        if (nInt.eq.4) then
+          w(1:4) = one/24.0d0
+
+          x1D(1) = 0.58541020d0
+          x1D(2) = 0.13819660d0
+
+          xi(1,1) = x1D(1)
+          xi(2,1) = x1D(2)
+          xi(3,1) = x1D(2)
+          xi(1,2) = x1D(2)
+          xi(2,2) = x1D(1)
+          xi(3,2) = x1D(2)
+          xi(1,3) = x1D(2)
+          xi(2,3) = x1D(2)
+          xi(3,3) = x1D(1)
+          xi(4,1) = x1D(2)
+          xi(4,2) = x1D(2)
+          xi(4,3) = x1D(2)
+
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          call xit
+        endif
+
+      elseif(nNode.eq.8) then   ! 3D hex8 element
+
+        if(nInt.eq.1) then      ! reduced integration for hex8
+          w(1) = eight
+          xi(1,1:3) = zero
+
+        elseif(nInt.eq.8) then  ! full-integration for hex8
+          w(1:8) = one
+
+          x1D(1) = -sqrt(third)
+          x1D(2) = sqrt(third)
+         
+          do k = 1,2
+            do j = 1,2
+              do i = 1,2
+                n = 4*(k-1) + 2*(j-1) + i
+                xi(n,1) = x1D(i)
+                xi(n,2) = x1D(j)
+                xi(n,3) = x1D(k)
+              end do
+            end do
+          end do
+
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          call xit
+        endif
+
+      elseif(nNode.eq.20) then  ! 3D hex20 element
+        
+        if (nInt.eq.8) then     ! reduced integration for hex20
+          w(1:8) = one
+
+          x1D(1) = -sqrt(third)
+          x1D(2) = sqrt(third)
+         
+          do k = 1,2
+            do j = 1,2
+              do i = 1,2
+                n = 4*(k-1) + 2*(j-1) + i
+                xi(n,1) = x1D(i)
+                xi(n,2) = x1D(j)
+                xi(n,3) = x1D(k)
+              end do
+            end do
+          end do
+        
+        elseif(nInt.eq.27) then ! full integration for hex20
+          w1D(1) = five/nine
+          w1D(2) = eight/nine
+          w1D(3) = w1D(1)
+
+          x1D(1) = -sqrt(0.6d0)
+          x1D(2) = zero
+          x1D(3) = sqrt(0.6d0)
+          do k = 1,3
+            do j = 1,3
+              do i = 1,3
+                n = 9*(k-1) + 3*(j-1) + i
+                xi(n,1) = x1D(i)
+                xi(n,2) = x1D(j)
+                xi(n,3) = x1D(k)
+                w(n) = w1D(i)*w1D(j)*w1D(k)
+              end do
+            end do
+          end do
+
+        else
+          write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
+          call xit
+        endif
+
+      else
+        write(dFile,*) 'ERROR > gaussQuadrtr3: Element unavailable.'
+        write(*,*) 'ERROR > gaussQuadrtr3: Element unavailable.'
+        call xit
+      endif
+
+      return
+      end subroutine gaussQuadrtr3
+
+! **********************************************************************
+
+
+! **********************************************************************
 *********************** MATRIX ALGEBRA SECTION *************************
-************************************************************************
+! **********************************************************************
 !
 !     SUBROUTINE to create identity matrix of any dimention
 !     SUBROUTINE to calculate determinant of matrix
 !     SUBROUTINE to calculate direct inverse of 2x2 and 3x3 matrix
 !     SUBROUTINE to map symmetric tensor to a vector
 !     SUBROUTINE to map 4th order tensor to 2D Voigt matrix
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE crossProduct(a,b,c)
+      subroutine crossProduct(a,b,c)
       ! this subroutine computes the cross product of two 3 dimensional vectors
 
-      IMPLICIT NONE
+      use global_parameters, only: dp
+      implicit none
 
-      double precision:: a(3), b(3), c(3)
+      real(kind=dp):: a(3), b(3), c(3)
 
       c(1) = a(2)*b(3)-a(3)*b(2)
       c(2) = b(1)*a(3)-a(1)*b(3)
       c(3) = a(1)*b(2)-a(2)*b(1)
 
-      END SUBROUTINE crossProduct
+      end subroutine crossProduct
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE traceMat(A,trA,nDim)
+      subroutine traceMat(A,trA,nDim)
       ! this subroutine calculates the trace of a square matrix
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: nDim, i
-      double precision:: A(nDim,nDim), trA
+      real(kind=dp):: A(nDim,nDim), trA
 
       trA = zero
 
@@ -1472,31 +1605,35 @@
         trA = trA + A(i,i)
       enddo
 
-      RETURN
-      END SUBROUTINE traceMat
+      return
+      end subroutine traceMat
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE detMat2(A,detA)
+      subroutine detMat2(A,detA)
       ! this subroutine calculates the determinant of a 2x2 or 3x3 matrix [A]
 
-      IMPLICIT NONE
+      use global_parameters, only: dp
 
-      double precision:: A(2,2), detA
+      implicit none
+
+      real(kind=dp):: A(2,2), detA
 
       detA = A(1,1)*A(2,2) - A(1,2)*A(2,1)
 
-      RETURN
-      END SUBROUTINE detMat2
+      return
+      end subroutine detMat2
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE detMat3(A,detA)
+      subroutine detMat3(A,detA)
       ! this subroutine calculates the determinant of a 2x2 or 3x3 matrix [A]
 
-      IMPLICIT NONE
+      use global_parameters, only: dp
 
-      double precision:: A(3,3), detA
+      implicit none
+
+      real(kind=dp):: A(3,3), detA
 
       detA = A(1,1)*A(2,2)*A(3,3)
      &     + A(1,2)*A(2,3)*A(3,1)
@@ -1505,33 +1642,29 @@
      &     - A(3,2)*A(2,3)*A(1,1)
      &     - A(3,3)*A(2,1)*A(1,2)
 
-      RETURN
-      END SUBROUTINE detMat3
+      return
+      end subroutine detMat3
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE inverseMat2(A,Ainv,detA,istat)
+      subroutine inverseMat2(A,Ainv,detA,istat)
       ! this subroutine returns Ainv and detA for a 2D matrix A
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: istat
-      double precision:: A(2,2),Ainv(2,2), detA, detAinv
+      real(kind=dp):: A(2,2),Ainv(2,2), detA, detAinv
 
       istat = 1
 
       call detMat2(A,detA)
 
       if (detA .le. zero) then
-          write(15,*) 'WARNING: subroutine inverseMat2:'
-          write(15,*) 'WARNING: det of mat= ', detA
-
-          write(*,*) 'WARNING: subroutine inverseMat2:'
-          write(*,*) 'WARNING: det of mat= ', detA
-
+          write(dFile,*) 'WARNING > inverseMAt2: det of mat= ', detA
+          write(*,*) 'WARNING > inverseMAt2: det of mat= ', detA
           istat = 0
-          RETURN
       end if
 
       detAinv = one/detA
@@ -1541,33 +1674,30 @@
       Ainv(2,1) = -detAinv*A(2,1)
       Ainv(2,2) =  detAinv*A(1,1)
 
-      RETURN
+      return
 
-      END SUBROUTINE inverseMat2
+      end subroutine inverseMat2
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE inverseMat3(A,Ainv,detA,istat)
+      subroutine inverseMat3(A,Ainv,detA,istat)
       ! this subroutine returns Ainv and detA for a 3D matrix A
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: istat
-      double precision:: A(3,3),Ainv(3,3), detA, detAinv
+      real(kind=dp):: A(3,3),Ainv(3,3), detA, detAinv
 
       istat = 1
 
       call detMat3(A,detA)
 
       if (detA .le. zero) then
-        write(15,*) 'WARNING: subroutine inverseMat3:'
-        write(15,*) 'WARNING: det of mat= ', detA
-
-        write(*,*) 'WARNING: subroutine inverseMat3:'
-        write(*,*) 'WARNING: det of mat= ', detA
+        write(dFile,*) 'WARNING > inverseMAt3: det of mat= ', detA
+        write(*,*) 'WARNING > inverseMAt3: det of mat= ', detA
         istat = 0
-        RETURN
       end if
 
       detAinv = one/detA
@@ -1582,25 +1712,26 @@
       Ainv(3,2) = detAinv*(A(3,1)*A(1,2)-A(1,1)*A(3,2))
       Ainv(3,3) = detAinv*(A(1,1)*A(2,2)-A(2,1)*A(1,2))
 
-      RETURN
-      END SUBROUTINE inverseMat3
+      return
+      end subroutine inverseMat3
 
-************************************************************************
+! **********************************************************************
 
       subroutine inverseMat(A,Ainv,n)
       ! this subroutine computes the inverse of an arbitrary
-      ! square matrix of size nxn using LU decomposition 
+      ! square matrix of size nxn using LU decomposition
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer,intent(in)   :: n
 
-      double precision,intent(inout) :: A(n,n)
-      double precision,intent(out)   :: Ainv(n,n)
+      real(kind=dp),intent(inout) :: A(n,n)
+      real(kind=dp),intent(out)   :: Ainv(n,n)
 
-      double precision:: L(n,n), U(n,n), b(n), d(n), x(n)
-      double precision:: coeff
+      real(kind=dp):: L(n,n), U(n,n), b(n), d(n), x(n)
+      real(kind=dp):: coeff
       integer :: i, j, k
 
       L = zero
@@ -1636,152 +1767,20 @@
         b(k)=zero
       end do
 
-      END SUBROUTINE inverseMat
+      end subroutine inverseMat
 
-************************************************************************
+! **********************************************************************
 
-      subroutine eigenSym3(A,eigenvalues,eigenvectors)
-      ! this subroutine computes eigenvals and eigenvectors of symmetric 3x3 matrix
-
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      double precision, intent(in)  :: A(3,3)                   ! input matrix
-      double precision, intent(out) :: eigenvalues(3)           ! eigenvalues
-      double precision, intent(out) :: eigenvectors(3,3)        ! ith eigenvector is eigenvectors(1:3,i)
-
-      double precision:: B(3,3), C(3,3), D(3,3)
-      double precision:: p1, p2, p, q, r, phi, evnorm, tol
-      integer:: i
-
-      eigenvectors = zero
-
-      p1 = A(1,2)*A(1,2) + A(1,3)*A(1,3) + A(2,3)*A(2,3)
-      tol = eps*(A(1,1)*A(1,1) + A(2,2)*A(2,2) + A(3,3)*A(3,3) + p1)
-
-      if (p1 == zero) then
-        eigenvalues(1) = A(1,1)
-        eigenvalues(2) = A(2,2)
-        eigenvalues(3) = A(3,3)
-
-        eigenvectors(1,1) = one
-        eigenvectors(2,2) = one
-        eigenvectors(3,3) = one
-
-      else
-          q = (A(1,1)+A(2,2)+A(3,3))/three
-          p2 = (A(1,1) - q)*(A(1,1)-q) + (A(2,2) - q)*(A(2,2) - q)
-     &         + (A(3,3) - q)*(A(3,3) - q) + two * p1
-          p = dsqrt(p2 / six)
-          B = (one / p) * (A - q * ID3)
-          r =   half*( B(1,1)*B(2,2)*B(3,3)
-     &                - B(1,1)*B(2,3)*B(3,2)
-     &                - B(1,2)*B(2,1)*B(3,3)
-     &                + B(1,2)*B(2,3)*B(3,1)
-     &                + B(1,3)*B(2,1)*B(3,2)
-     &                - B(1,3)*B(2,2)*B(3,1) )
-
-            if (r < -one) then
-                phi = pi / three
-            else if (r > one) then
-                phi = zero
-            else
-                phi = dacos(r) / three
-            end if
-
-            ! the eigenvalues satisfy eig3 <= eig2 <= eig1
-            eigenvalues(1) = q + two*p*dcos(phi)
-            eigenvalues(3) = q + two*p*dcos(phi + (two*pi/three))
-            eigenvalues(2) = three*q - eigenvalues(1) - eigenvalues(3)
-
-            do i = 1,3
-              B = A - eigenvalues(i)*ID3
-              C = A - eigenvalues(mod(i,3)+1)*ID3
-              D = matmul(B,C)
-              eigenvectors(1:3,mod(i+1,3)+1) = matmul(D,(/one,one,one/))
-            end do
-
-            do i = 1,3
-              evnorm = dsqrt(dot_product(eigenvectors(1:3,i),
-     &                 eigenvectors(1:3,i)))
-              if (evnorm>tol) then
-                  eigenvectors(1:3,i) = eigenvectors(1:3,i)/evnorm
-              else
-                  call crossProduct(
-     &            eigenvectors(1:3,mod(i,3)+1),
-     &            eigenvectors(1:3,mod(i+1,3)+1),
-     &            eigenvectors(1:3,i))
-
-                  evnorm = dsqrt(dot_product(eigenvectors(1:3,i),
-     &                        eigenvectors(1:3,i)))
-
-                  eigenvectors(1:3,i) = eigenvectors(1:3,i)/evnorm
-              endif
-            end do
-      end if
-
-      end subroutine eigenSym3
-
-************************************************************************
-
-      SUBROUTINE sqrtMat3(A, B)
-      ! this subroutines computes square root of a symmetric 3x3 matrix
-
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      double precision, intent(in) :: A(3,3)
-
-      double precision:: D(3,3), V(3,3), eig(3)
-      double precision:: B(3,3)
-
-      call eigenSym3(A,eig,V)
-
-      D = zero
-
-      D(1,1) = dsqrt(eig(1))
-      D(2,2) = dsqrt(eig(2))
-      D(3,3) = dsqrt(eig(3))
-
-      B = matmul(V,matmul(D,transpose(V)))
-
-      END SUBROUTINE sqrtMat3
-
-************************************************************************
-
-      SUBROUTINE polarDecomp3(A,V,U,R)
-      ! this subroutine compute left and right polar decompositions
-      ! of a 3x3 matrix A (used for deformation gradient)
-
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      double precision, intent (in)   :: A(3,3)
-      double precision, intent (out)  :: R(3,3), U(3,3), V(3,3)
-      double precision:: Vinv(3,3), detV
-      integer:: nDim, istat
-
-      !  Decompose A into A=RU=VR  where U,V are symmetric and R is orthogonal
-
-      R = matmul(A,transpose(A))                      ! R is just temporary variable here
-      call sqrtMat3(R,V)                              ! V= sqrt(A*A^T)
-      call inverseMat3(V,Vinv,detV,istat)
-      R = matmul(Vinv,A)                              ! R = V^-1*A
-      U = matmul(transpose(R),A)                      ! U = R^T*A
-
-      end subroutine polarDecomp3
-
-************************************************************************
-
-      SUBROUTINE voigtAugment(vect2D, vect3D, ntens)
+      subroutine voigtAugment(vect2D, vect3D, ntens)
       ! this subroutine augemnts a 3x1 (plane) or 4x1 (axisymmetric)
       ! array to a 6x1 Voigt array of 3D dimensional case
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: ntens
-      double precision:: vect2D(ntens,1), vect3D(nSymm,1)
+      real(kind=dp):: vect2D(ntens,1), vect3D(nSymm,1)
 
       vect3D = zero
 
@@ -1797,20 +1796,21 @@
         vect3D = vect2D
       endif
 
-      RETURN
-      END SUBROUTINE voigtAugment
+      return
+      end subroutine voigtAugment
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE voigtTruncate(vect3D, vect2D, ntens)
+      subroutine voigtTruncate(vect3D, vect2D, ntens)
       ! this subroutine truncates a 6x1 Voigt array
       ! to a 3x1 (plane) or 4x1 (axisymmetry) Voigt array
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: ntens
-      double precision:: vect3D(nSymm,1), vect2D(ntens,1)
+      real(kind=dp):: vect3D(nSymm,1), vect2D(ntens,1)
 
       vect2D = zero
 
@@ -1824,62 +1824,21 @@
         vect2D(4,1) = vect3D(6,1)
       endif
 
-      RETURN
+      return
 
-      END SUBROUTINE voigtTruncate
+      end subroutine voigtTruncate
 
-************************************************************************
-      SUBROUTINE symtensor2vector2(ATens,AVect)
-      ! this subroutine maps a symmetric tensor to a vector
-      ! for unSymmmetric tensor you can use "reshape" function
+! **********************************************************************
 
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      integer:: i
-      double precision:: ATens(2,2), AVect(3,1)
-
-      do i = 1, 2
-        AVect(i,1) = ATens(i,i)
-      enddo
-      AVect(3,1) = ATens(1,2)
-
-      RETURN
-      END SUBROUTINE symtensor2vector2
-
-************************************************************************
-
-      SUBROUTINE symtensor2vector3(ATens,AVect)
-      ! this subroutine maps a symmetric tensor to a vector
-      ! for unSymmmetric tensor you can use "reshape" function
-
-      USE PARAMETERS
-      IMPLICIT NONE
-
-      integer:: i
-      double precision:: ATens(3,3), AVect(nSymm,1)
-
-      do i = 1, 3
-        AVect(i,1) = ATens(i,i)
-      enddo
-
-      AVect(4,1) = ATens(2,3)
-      AVect(5,1) = ATens(1,3)
-      AVect(6,1) = ATens(1,2)
-
-      RETURN
-      END SUBROUTINE symtensor2vector3
-
-************************************************************************
-
-      SUBROUTINE vector2symtensor2(Avect,Atens)
+      subroutine vector2symtensor2(Avect,Atens)
       ! this subroutine transforms a 4x1 Voigt vector to 2x2 symmetric tensor
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: i
-      double precision:: ATens(2,2), AVect(3,1)
+      real(kind=dp):: ATens(2,2), AVect(3,1)
 
       do i = 1, 2
         ATens(i,i) = AVect(i,1)
@@ -1889,18 +1848,19 @@
       ATens(2,1) = ATens(1,2)
 
 
-      RETURN
-      END SUBROUTINE vector2symtensor2
+      return
+      end subroutine vector2symtensor2
 
-************************************************************************
-      SUBROUTINE vector2symtensor3(Avect,Atens)
+! **********************************************************************
+      subroutine vector2symtensor3(Avect,Atens)
       ! this subroutine transforms a 6x1 Voigt vector to 3x3 symmetric tensor
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: i
-      double precision:: AVect(6,1), ATens(3,3)
+      real(kind=dp):: AVect(6,1), ATens(3,3)
 
       do i = 1, 3
         ATens(i,i) = AVect(i,1)
@@ -1913,41 +1873,87 @@
       ATens(3,1) = ATens(1,3)
       ATens(3,2) = ATens(2,3)
 
-      RETURN
-      END SUBROUTINE vector2symtensor3
+      return
+      end subroutine vector2symtensor3
 
-************************************************************************
+! **********************************************************************
 
-      SUBROUTINE symtangent2matrix(C,D)
+      subroutine symtangent2matrix(C,Dmat)
 
       ! this subroutine maps the fourth order material/spatial tangent
       ! tensor (3x3x3x3) to a 2nd order stiffness tensor (6x6) using
       ! voigt notation: 11> 1, 22> 2, 33> 3, 23/32> 4, 13/31> 5, 12/21> 6
 
-      USE PARAMETERS
-      IMPLICIT NONE
+      use global_parameters
+
+      implicit none
 
       integer:: i, j, k, l, rw, cl
       integer:: Voigt(nSymm,2)
-      double precision:: C(3,3,3,3), D(nSymm,nSymm)
+      real(kind=dp):: C(3,3,3,3), Dmat(nSymm,nSymm)
 
       ! Voigt convetion: (1,1) (2,2) (3,3) (2,3) (1,3) (1,2)
-      Voigt = reshape((/ 1, 2, 3, 2, 1, 1,  1, 2, 3, 3, 3, 2 /),
-     &        shape(Voigt))
-
-      do rw = 1, nSymm
-        do cl = 1, nSymm
-          i = Voigt(rw,1)
-          j = Voigt(rw,2)
-          k = Voigt(cl,1)
-          l = Voigt(cl,2)
-
-          D(rw,cl) = C(i,j,k,l)
+      Voigt = reshape( [  1, 2, 3, 2, 1, 1,  
+     &                    1, 2, 3, 3, 3, 2 ], shape(Voigt))
+  
+        do rw = 1, nSymm
+          do cl = 1, nSymm
+            i = Voigt(rw,1)
+            j = Voigt(rw,2)
+            k = Voigt(cl,1)
+            l = Voigt(cl,2)
+  
+            Dmat(rw,cl) = C(i,j,k,l)
+          enddo
         enddo
+  
+        return
+
+        end subroutine symtangent2matrix
+  
+! **********************************************************************
+
+      subroutine symtensor2vector2(ATens,AVect)
+      ! this subroutine maps a symmetric tensor to a vector
+      ! for unSymmmetric tensor you can use "reshape" function
+  
+      use global_parameters
+
+      implicit none
+
+      integer:: i
+      real(kind=dp):: ATens(2,2), AVect(3,1)
+
+      do i = 1, 2
+        AVect(i,1) = ATens(i,i)
+      enddo
+      AVect(3,1) = ATens(1,2)
+
+      return
+      end subroutine symtensor2vector2
+  
+! **********************************************************************
+  
+      subroutine symtensor2vector3(ATens,AVect)
+      ! this subroutine maps a symmetric tensor to a vector
+      ! for unSymmmetric tensor you can use "reshape" function
+
+      use global_parameters
+
+      implicit none
+
+      integer:: i
+      real(kind=dp):: ATens(3,3), AVect(nSymm,1)
+
+      do i = 1, 3
+        AVect(i,1) = ATens(i,i)
       enddo
 
-      RETURN
-      END SUBROUTINE symtangent2matrix
+      AVect(4,1) = ATens(2,3)
+      AVect(5,1) = ATens(1,3)
+      AVect(6,1) = ATens(1,2)
 
-************************************************************************
-************************************************************************
+      return
+      end subroutine symtensor2vector3
+
+! **********************************************************************
