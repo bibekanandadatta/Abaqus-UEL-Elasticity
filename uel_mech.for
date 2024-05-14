@@ -105,51 +105,54 @@
 
 
 ! **********************************************************************
-!                        GLOBAL PARAMETERS MODULE
+!                      GLOBAL PARAMETERS MODULE
 !
-!     defines real(kind=dp) real global parameters to be used in 
+!     defines real(kind=wp) real global parameters to be used in 
 !     various functions and subroutines within and outside of UEL
 ! **********************************************************************
 
       module global_parameters
 
-      integer, parameter :: sp = kind(0.0e0), dp=kind(0.0d0)
+      integer, parameter :: wp=kind(0.0d0)
 
-      real(kind=dp) :: zero, one, two, three, four, five,
+      real(kind=wp) :: zero, one, two, three, four, five,
      &        six, eight, nine, half, third, fourth, 
      &        fifth, sixth, eighth, eps, pi
 
-      parameter( zero = 0.0_dp, one =  1.0_dp, two = 2.0_dp,
-     &        three = 3.0_dp, four = 4.0_dp, five = 5.0_dp,
-     &        six = 6.0_dp, eight = 8.0_dp, nine = 9.0_dp,
-     &        half= 0.5_dp, third = 1.0_dp/3.0_dp, fourth = 0.25_dp,
-     &        fifth = 1.0_dp/5.0_dp, sixth = 1.0_dp/6.0_dp,
-     &        eighth = 0.125_dp,
+      parameter( zero = 0.0_wp, one =  1.0_wp, two = 2.0_wp,
+     &        three = 3.0_wp, four = 4.0_wp, five = 5.0_wp,
+     &        six = 6.0_wp, eight = 8.0_wp, nine = 9.0_wp,
+     &        half= 0.5_wp, third = 1.0_wp/3.0_wp, 
+     &        fourth = 0.25_wp, fifth = 1.0_wp/5.0_wp, 
+     &        sixth = 1.0_wp/6.0_wp, eighth = 0.125_wp,
      &        eps = 1.d-09,
-     &        pi = 3.14159265358979323846264338327950_dp)
+     &        pi = 3.14159265358979323846264338327950_wp)
 
 
       ! no of symmetric and unSymmmetric tensor components
       integer, parameter  :: nSymm = 6, nUnsymmm = 9
 
       ! identity matrices in 2- and 3-dimensions
-      real(kind=dp) :: ID2(2,2), ID3(3,3)
+      real(kind=wp) :: ID2(2,2), ID3(3,3)
       parameter(  ID2 = reshape([ one, zero,
      &                            zero, one ], shape(ID2) ),
      &            ID3 = reshape([ one, zero, zero,
      &                            zero, one, zero,
      &                            zero, zero, one ], shape(ID3) ) )
 
-      ! debug file unit
+
+      !! debug file unit
       integer, parameter :: dFile = 15
 
+
+      !! post-processing related variables
       ! no of total user elements and offset for overlaying elements
       integer, parameter:: numElem = 50000, elemOffset = 100000
       ! numElem should be same (recommended) or higher than total
       ! number of elements in the overlaying element set
       ! elemOffset should match with the number used in input file
 
-      real(kind=dp), allocatable:: globalPostVars(:,:,:)
+      real(kind=wp), allocatable:: globalPostVars(:,:,:)
 
       end module global_parameters
 
@@ -173,7 +176,7 @@
      & PREDEF(2,NPREDF,NNODE),LFLAGS(*),JPROPS(*)
 
       ! user coding to define RHS, AMATRX, SVARS, ENERGY, and PNEWDT
-      real(kind=dp) :: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
+      real(kind=wp) :: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
      &      PROPS, COORDS, DUall, Uall, Vel, Accn, TIME, DTIME,
      &      PARAMS, ADLMAG, PREDEF, DDLMAG, PERIOD
 
@@ -214,7 +217,7 @@
       else
         write(dFile,*) 'ERROR > UEL: Element type is available: ', JTYPE
         write(*,*) 'ERROR > UEL: Element type is available: ', JTYPE
-        call xit
+        return
       endif
 
       ! change the LFLAGS criteria as needed (check abaqus UEL manual)
@@ -223,7 +226,7 @@
       else
         write(dFile,*) 'ERROR > UEL: Incorrect procedure: ', lflags(1)
         write(*,*) 'ERROR > UEL: Incorrect procedure: ', lflags(1)
-        call xit
+        return
       endif
 
       ! check if the procedure is linear or nonlinear
@@ -331,7 +334,7 @@
      & PREDEF(2,NPREDF,NNODE),LFLAGS(*),JPROPS(*)
 
       ! user coding to define RHS, AMATRX, SVARS, ENERGY, and PNEWDT
-      real(kind=dp):: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
+      real(kind=wp):: RHS, AMATRX, SVARS, ENERGY, PNEWDT,
      &      PROPS, COORDS, DUall, Uall, Vel, Accn, TIME, DTIME,
      &      PARAMS, ADLMAG, PREDEF, DDLMAG, PERIOD
 
@@ -343,7 +346,7 @@
       integer :: nDim, ndi, nshr, ntens, uDOF, uDOFEL, nInt
       logical :: nlgeom
 
-      real(kind=dp):: ID(nDim,nDim), w(nInt), xi(nInt,nDim),
+      real(kind=wp):: ID(nDim,nDim), w(nInt), xi(nInt,nDim),
      &      Nxi(nNode,1), dNdxi(nNode,nDim), dxdxi(nDim,nDim),
      &      dxidx(nDim,nDim), dNdx(nNode,nDim), detJ,
      &      Na(nDim,nDim), Nmat(nDim,uDOFEl),
@@ -352,7 +355,7 @@
      &      fieldVar(npredf), dfieldVar(npredf),
      &      Kuu(uDOFEl,uDOFEl), Ru(uDOFEl,1)
 
-      real(kind=dp):: stran(ntens,1), dstran(ntens,1),
+      real(kind=wp):: stran(ntens,1), dstran(ntens,1),
      &      stranVoigt(nSymm,1), dstranVoigt(nSymm,1),
      &      stress(ntens,1), Dmat(ntens,ntens)
 
@@ -530,7 +533,7 @@
       integer:: nsvars, npredf, nDim, ndi, nshr, ntens,
      &    jelem, intPt, nNode, kstep, kinc, nprops, njprops
 
-      real(kind=dp):: props(1:nprops), stran(ntens,1),
+      real(kind=wp):: props(1:nprops), stran(ntens,1),
      &    stranVoigt(nSymm,1), dstranVoigt(nSymm,1),
      &    stress(ntens,1), dmat(ntens,ntens),
      &    svars(1:nsvars), coords(ndim,nnode), time(2), dtime,
@@ -541,7 +544,7 @@
 
 
       ! variables local to the subroutine
-      real(kind=dp):: E, nu, lambda, mu, Cmat(3,3,3,3),
+      real(kind=wp):: E, nu, lambda, mu, Cmat(3,3,3,3),
      &          VoigtMat(nSymm,nSymm), stressVoigt(nSymm,1)
       integer:: nInt, nlocalSdv
 
@@ -641,7 +644,7 @@
       ! must be set equal to or greater than 15.
 
       ! explicityly define the type for uvar to avoid issues
-      real(kind=dp):: uvar
+      real(kind=wp):: uvar
 
       uvar(1:nuvarm) = globalPostVars(noel-elemOffset,npt,1:nuvarm)
 
@@ -676,7 +679,7 @@
       
       integer:: nNode, nInt, intpt
       
-      real(kind=dp) :: xi, xi_int(nInt,1), Nxi(nNode), dNdxi(nNode,1)
+      real(kind=wp) :: xi, xi_int(nInt,1), Nxi(nNode), dNdxi(nNode,1)
 
       xi    = xi_int(intpt,1)
 
@@ -703,7 +706,7 @@
       else
         write(dFile,*) 'ERROR > interpFunc1: Element unavailable.'
         write(*,*) 'ERROR > interpFunc1: Element unavailable.'
-        call xit
+        return
       endif
 
       return
@@ -725,8 +728,8 @@
 
       integer:: nNode, nInt, intpt
 
-      real(kind=dp):: xi_int(nInt,2), Nxi(nNode), dNdxi(nNode,2)
-      real(kind=dp):: xi, eta, lam
+      real(kind=wp):: xi_int(nInt,2), Nxi(nNode), dNdxi(nNode,2)
+      real(kind=wp):: xi, eta, lam
 
       ! location in the master element
       xi    = xi_int(intpt,1)
@@ -865,7 +868,7 @@
       else
         write(dFile,*) 'ERROR > interpFunc2: Element unavailable.'
         write(*,*) 'ERROR > interpFunc2: Element unavailable.'
-        call xit
+        return
       endif
 
       return
@@ -887,8 +890,8 @@
 
       integer:: nNode, nInt, intpt
 
-      real(kind=dp):: xi_int(nInt,3), Nxi(nNode), dNdxi(nNode,3)
-      real(kind=dp):: xi, eta, zeta, lam
+      real(kind=wp):: xi_int(nInt,3), Nxi(nNode), dNdxi(nNode,3)
+      real(kind=wp):: xi, eta, zeta, lam
 
       ! Nxi(i)          = shape function of node i at the intpt.
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
@@ -1129,8 +1132,8 @@
         dNdxi(20,3) = -zeta*(one-xi)*(one+eta)/two
       else
         write(dFile,*) 'ERROR > interpFunc3: Element unavailable.'
-        write(*,*) 'ERROR > interpFunc1: Element unavailable.'
-        call xit
+        write(*,*) 'ERROR > interpFunc3: Element unavailable.'
+        return
       endif
 
       return
@@ -1236,7 +1239,7 @@
       implicit none
 
       integer:: nNode, nInt
-      real(kind=dp):: w(nInt), xi(nInt,1)
+      real(kind=wp):: w(nInt), xi(nInt,1)
 
       w = zero
       xi = zero
@@ -1248,7 +1251,7 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
-          call xit
+          return
         endif           ! end int for 2-noded bar
 
       elseif (nNode.eq.3) then
@@ -1266,13 +1269,13 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr1: wrong Gauss points.'
-          call xit
+          return
         endif           ! end int for 3-noded bar
 
       else
         write(dFile,*) 'ERROR > gaussQuadrtr1: Element unavailable.'
         write(*,*) 'ERROR > gaussQuadrtr1: Element unavailable.'
-        call xit
+        return
       endif           
 
       return
@@ -1291,8 +1294,8 @@
       implicit none
 
       integer:: nNode, nInt
-      real(kind=dp):: x1D(4), w1D(4)
-      real(kind=dp):: w(nInt), xi(nInt,2)
+      real(kind=wp):: x1D(4), w1D(4)
+      real(kind=wp):: w(nInt), xi(nInt,2)
 
       w  = zero
       xi = zero
@@ -1304,8 +1307,8 @@
           xi(2,1) = third
         else
           write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
-          write(*,*) 'ERROR > gaussQuadrtr1: Wrong Gauss points.'
-          call xit
+          write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
+          return
         endif
 
       elseif (nNode.eq.6) then  ! plane tri6 elements (full integration)
@@ -1321,7 +1324,7 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
-          call xit
+          return
         endif
         
       elseif((nNode.eq.4)) then ! plane quad4 element
@@ -1348,7 +1351,7 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
-          call xit
+          return
         endif
 
       elseif (nNode.eq.8) then  ! plane quad8 element
@@ -1405,13 +1408,13 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr2: Wrong Gauss points.'
-          call xit
+          return
         endif
 
       else
         write(dFile,*) 'ERROR > gaussQuadrtr2: Element unavailable.'
         write(*,*) 'ERROR > gaussQuadrtr2: Element unavailable.'
-        call xit
+        return
       endif
 
 
@@ -1432,8 +1435,8 @@
 
       integer:: nNode, nInt
       integer:: i, j, k, n
-      real(kind=dp):: x1D(4), w1D(4)
-      real(kind=dp):: w(nInt), xi(nInt,3)
+      real(kind=wp):: x1D(4), w1D(4)
+      real(kind=wp):: w(nInt), xi(nInt,3)
 
       w  = zero
       xi = zero
@@ -1446,16 +1449,16 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
-          call xit
+          return
         endif
 
       elseif(nNode.eq.10) then  ! 3D tet10 element (full integration)
 
         if (nInt.eq.4) then
-          w(1:4) = one/24.0d0
+          w(1:4) = one/24.0_wp
 
-          x1D(1) = 0.58541020d0
-          x1D(2) = 0.13819660d0
+          x1D(1) = 0.58541020_wp
+          x1D(2) = 0.13819660_wp
 
           xi(1,1) = x1D(1)
           xi(2,1) = x1D(2)
@@ -1473,7 +1476,7 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
-          call xit
+          return
         endif
 
       elseif(nNode.eq.8) then   ! 3D hex8 element
@@ -1502,7 +1505,7 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
-          call xit
+          return
         endif
 
       elseif(nNode.eq.20) then  ! 3D hex20 element
@@ -1529,9 +1532,9 @@
           w1D(2) = eight/nine
           w1D(3) = w1D(1)
 
-          x1D(1) = -sqrt(0.6d0)
+          x1D(1) = -sqrt(0.6_wp)
           x1D(2) = zero
-          x1D(3) = sqrt(0.6d0)
+          x1D(3) = sqrt(0.6_wp)
           do k = 1,3
             do j = 1,3
               do i = 1,3
@@ -1547,13 +1550,13 @@
         else
           write(dFile,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
           write(*,*) 'ERROR > gaussQuadrtr3: Wrong Gauss points.'
-          call xit
+          return
         endif
 
       else
         write(dFile,*) 'ERROR > gaussQuadrtr3: Element unavailable.'
         write(*,*) 'ERROR > gaussQuadrtr3: Element unavailable.'
-        call xit
+        return
       endif
 
       return
@@ -1576,10 +1579,10 @@
       subroutine crossProduct(a,b,c)
       ! this subroutine computes the cross product of two 3 dimensional vectors
 
-      use global_parameters, only: dp
+      use global_parameters, only: wp
       implicit none
 
-      real(kind=dp):: a(3), b(3), c(3)
+      real(kind=wp):: a(3), b(3), c(3)
 
       c(1) = a(2)*b(3)-a(3)*b(2)
       c(2) = b(1)*a(3)-a(1)*b(3)
@@ -1597,7 +1600,7 @@
       implicit none
 
       integer:: nDim, i
-      real(kind=dp):: A(nDim,nDim), trA
+      real(kind=wp):: A(nDim,nDim), trA
 
       trA = zero
 
@@ -1613,11 +1616,11 @@
       subroutine detMat2(A,detA)
       ! this subroutine calculates the determinant of a 2x2 or 3x3 matrix [A]
 
-      use global_parameters, only: dp
+      use global_parameters, only: wp
 
       implicit none
 
-      real(kind=dp):: A(2,2), detA
+      real(kind=wp):: A(2,2), detA
 
       detA = A(1,1)*A(2,2) - A(1,2)*A(2,1)
 
@@ -1629,11 +1632,11 @@
       subroutine detMat3(A,detA)
       ! this subroutine calculates the determinant of a 2x2 or 3x3 matrix [A]
 
-      use global_parameters, only: dp
+      use global_parameters, only: wp
 
       implicit none
 
-      real(kind=dp):: A(3,3), detA
+      real(kind=wp):: A(3,3), detA
 
       detA = A(1,1)*A(2,2)*A(3,3)
      &     + A(1,2)*A(2,3)*A(3,1)
@@ -1655,7 +1658,7 @@
       implicit none
 
       integer:: istat
-      real(kind=dp):: A(2,2),Ainv(2,2), detA, detAinv
+      real(kind=wp):: A(2,2),Ainv(2,2), detA, detAinv
 
       istat = 1
 
@@ -1688,7 +1691,7 @@
       implicit none
 
       integer:: istat
-      real(kind=dp):: A(3,3),Ainv(3,3), detA, detAinv
+      real(kind=wp):: A(3,3),Ainv(3,3), detA, detAinv
 
       istat = 1
 
@@ -1727,11 +1730,11 @@
 
       integer,intent(in)   :: n
 
-      real(kind=dp),intent(inout) :: A(n,n)
-      real(kind=dp),intent(out)   :: Ainv(n,n)
+      real(kind=wp),intent(inout) :: A(n,n)
+      real(kind=wp),intent(out)   :: Ainv(n,n)
 
-      real(kind=dp):: L(n,n), U(n,n), b(n), d(n), x(n)
-      real(kind=dp):: coeff
+      real(kind=wp):: L(n,n), U(n,n), b(n), d(n), x(n)
+      real(kind=wp):: coeff
       integer :: i, j, k
 
       L = zero
@@ -1780,7 +1783,7 @@
       implicit none
 
       integer:: ntens
-      real(kind=dp):: vect2D(ntens,1), vect3D(nSymm,1)
+      real(kind=wp):: vect2D(ntens,1), vect3D(nSymm,1)
 
       vect3D = zero
 
@@ -1810,7 +1813,7 @@
       implicit none
 
       integer:: ntens
-      real(kind=dp):: vect3D(nSymm,1), vect2D(ntens,1)
+      real(kind=wp):: vect3D(nSymm,1), vect2D(ntens,1)
 
       vect2D = zero
 
@@ -1838,7 +1841,7 @@
       implicit none
 
       integer:: i
-      real(kind=dp):: ATens(2,2), AVect(3,1)
+      real(kind=wp):: ATens(2,2), AVect(3,1)
 
       do i = 1, 2
         ATens(i,i) = AVect(i,1)
@@ -1860,7 +1863,7 @@
       implicit none
 
       integer:: i
-      real(kind=dp):: AVect(6,1), ATens(3,3)
+      real(kind=wp):: AVect(6,1), ATens(3,3)
 
       do i = 1, 3
         ATens(i,i) = AVect(i,1)
@@ -1890,7 +1893,7 @@
 
       integer:: i, j, k, l, rw, cl
       integer:: Voigt(nSymm,2)
-      real(kind=dp):: C(3,3,3,3), Dmat(nSymm,nSymm)
+      real(kind=wp):: C(3,3,3,3), Dmat(nSymm,nSymm)
 
       ! Voigt convetion: (1,1) (2,2) (3,3) (2,3) (1,3) (1,2)
       Voigt = reshape( [  1, 2, 3, 2, 1, 1,  
@@ -1922,7 +1925,7 @@
       implicit none
 
       integer:: i
-      real(kind=dp):: ATens(2,2), AVect(3,1)
+      real(kind=wp):: ATens(2,2), AVect(3,1)
 
       do i = 1, 2
         AVect(i,1) = ATens(i,i)
@@ -1943,7 +1946,7 @@
       implicit none
 
       integer:: i
-      real(kind=dp):: ATens(3,3), AVect(nSymm,1)
+      real(kind=wp):: ATens(3,3), AVect(nSymm,1)
 
       do i = 1, 3
         AVect(i,1) = ATens(i,i)
