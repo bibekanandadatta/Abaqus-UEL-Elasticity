@@ -9,7 +9,7 @@ This repository contains the Fortran source code for small strain isotropic line
 
 
 
-## Obtaining the file
+## Obtaining the files
 
 If you have `git` installed, you can clone the repository to your local machine using
 ```bash
@@ -24,14 +24,17 @@ Alternatively, you can download the files in a `zip` folder in this repository u
 
 ## Description of the repository
 
+All the source codes are located in the `src` directory and the Abaqus test cases are located in the `tests` directory. The documentation are available in the `docs` directory.
+
 |   File name  |  Description  |
 | ----------   | ------------- |
 | `uel_mech.for` | is the Fortran source code that implements the isotropic linear elastic user element. The main `UEL` subroutine performs all the initial checks but the main calculations are performed in a subsequent subroutine. The source code includes additional subroutines with Lagrangian interpolation functions for 4 types of 2D continuum elements (Tri3, Tri6, Quad4, and Quad8) and 4 types of 3D continuum elements (Tet4, Tet10, Hex8, Hex20) and Gaussian quadratures with reduced and full integration schemes. Body force and traction boundary conditions were not been included in this implementation, however, these can be applied by overlaying standard Abaqus elements on the user elements (to be discussed in the **Modeling in Abaqus** section). Since Abaqus/Viewer does not provide native support for visualizing user elements, an additional layer of elements with the same element connectivity has been created and results at the integration points of the elements are stored using the `UVARM` subroutine. |
-| `addElemMech.py` | is a Python code that modifies a simple input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
-| `<>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
-| `runAbq.ps1` | is a PowerShell batch file that can execute the user subroutine and specified input file from the PowerShell terminal (optional).
-| Elastic.pdf | is a summary of the theory and algorithm used to implement the provided source code. |
-| Abaqus Docs.pdf | is a collection of publicly available Abaqus documentation in PDF format related to the Abaqus UEL subroutine. The web versions of these documents are available at https://help.3ds.com. |
+| `<some_module>.for` | These are the utility files with different Fortran module that are included in the main source file using `include <filename.ext>` statement. |
+| `addElemMech.py` | is a Python code in the `tests` directory that modifies a simple Abaqus input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
+| `<...>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
+| `runAbq.ps1` | is a PowerShell batch file in the `tests` directory that can execute the user subroutine and specified input file from the PowerShell terminal (optional). |
+| elastic_elem.pdf | is a summary of the theory and algorithm used to implement the provided source code. |
+| Abaqus_docs.pdf | is a collection of publicly available Abaqus documentation in PDF format related to the Abaqus UEL subroutine. The web versions of these documents are available at https://help.3ds.com. |
 
 
 
@@ -64,10 +67,10 @@ To visualize the results, an additional set of built-in Abaqus elements with the
 
 To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [this tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it before.
 
-Ensure the source code and input file are in the same directory. Using the `Abaqus command line terminal` or `cmd terminal` or `PowerShell terminal`, you can execute the following command from the directory to execute the subroutine.
+Navigate to the `tests` directory. Open the `Abaqus command line terminal` or `cmd terminal` or `PowerShell terminal`, you can execute the following command from the directory to execute the subroutine. Make sure to use the right directory for the main source code.
 
 ```bash
-abaqus interactive double analysis job=<your_job_name> input=<input_file_name.inp> user=<source_code.for>
+abaqus interactive double analysis job=<your_job_name> input=<input_file_name.inp> user=../src/uel_mech.for
 ```
 Specify the variable names (inside < >) in the above command as needed. For additional information on executing user subroutines, check the Abaqus user manual.
 
