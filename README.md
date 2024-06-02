@@ -24,7 +24,7 @@ Alternatively, you can download the files in a `zip` folder in this repository u
 
 ## Description of the repository
 
-All the source codes are located in the `src` directory and the Abaqus test cases are located in the `tests` directory. The documentation are available in the `docs` directory.
+All the source codes are located in the `src` subdirectory and the Abaqus test cases are located in the `tests` subdirectory. The documentations are available in the `docs` subdirectory. Compiling the source code requires Intel oneMKL library. [See this blog post](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) to learn how to link Intel oneMKL library to Abaqus user subroutines.
 
 |   File name  |  Description  |
 | ----------   | ------------- |
@@ -32,6 +32,7 @@ All the source codes are located in the `src` directory and the Abaqus test case
 | `<some_module>.for` | These are the utility files with different Fortran module that are included in the main source file using `include <filename.ext>` statement. |
 | `addElemMech.py` | is a Python code in the `tests` directory that modifies a simple Abaqus input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
 | `<...>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
+| `abaqus_v6.env` | is the Abaqus environment file which adds the additional compiling option for the Intel oneMKL library. This needs to be in the same directory as the Abaqus jobs. |
 | `runAbq.ps1` | is a PowerShell batch file in the `tests` directory that can execute the user subroutine and specified input file from the PowerShell terminal (optional). |
 | elastic_elem.pdf | is a summary of the theory and algorithm used to implement the provided source code. |
 | Abaqus_docs.pdf | is a collection of publicly available Abaqus documentation in PDF format related to the Abaqus UEL subroutine. The web versions of these documents are available at https://help.3ds.com. |

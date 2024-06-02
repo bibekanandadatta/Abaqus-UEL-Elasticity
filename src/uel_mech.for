@@ -3,7 +3,7 @@
 ! **********************************************************************
 ! * small strain displacement element with isotropic linear elasticity *
 ! **********************************************************************
-!                   BIBEKANANDA DATTA (C) FEBRUARY 2024
+!                     BIBEKANANDA DATTA (C) MAY 2024
 !                 JOHNS HOPKINS UNIVERSITY, BALTIMORE, MD
 ! **********************************************************************
 ! **********************************************************************
@@ -178,7 +178,7 @@
       !! check if the procedure is linear or nonlinear
       if (lflags(2).eq.0) then
         nlgeom = .false.
-      elseif (lflags(2).eq.1) then
+      else if (lflags(2).eq.1) then
         nlgeom = .true.
       end if
 
@@ -197,7 +197,7 @@
         nStress   = 6
         uDOF      = nDim            ! displacement degrees of freedom of a node
         uDOFEL    = nNode*uDOF      ! total displacement degrees of freedom in element
-      elseif ((jtype.ge.5).and.(jtype.le.8)) then
+      else if ((jtype.ge.5).and.(jtype.le.8)) then
         nDim      = 2
         analysis  = 'PE'            ! plane strain analysis
         nStress   = 3
@@ -356,7 +356,7 @@
           ! form the nodal-level matrices: [Na]
           do j = 1, nDim
             Na(j,j) = Nxi(i)
-          enddo
+          end do
 
           ! form [Ba] matrix: plane stress/ plane strain case
           if (analysis.eq.'PE') then
@@ -365,7 +365,7 @@
             Ba(3,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
 
           ! form [Ba] matrix: 3D case
-          elseif (analysis.eq.'3D') then
+          else if (analysis.eq.'3D') then
             Ba(1,1)       = dNdx(i,1)
             Ba(2,2)       = dNdx(i,2)
             Ba(3,3)       = dNdx(i,3)
@@ -382,7 +382,7 @@
           ! form the [N] and [B] matrices
           Nmat(1:nDim,nDim*(i-1)+1:nDim*i)    = Na(1:nDim,1:nDim)
           Bmat(1:nStress,nDim*(i-1)+1:nDim*i) = Ba(1:nStress,1:nDim)
-        enddo                             ! end of nodal point loop
+        end do                             ! end of nodal point loop
 
       !!!!!!!!!!!!!! COMPLETE ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!
 
@@ -420,7 +420,7 @@
 
         !!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!!
 
-      enddo                             ! end of integration point loop
+      end do                             ! end of integration point loop
 
 
       ! body force and surface load can be added using overlaying elements
@@ -487,8 +487,8 @@
       E      = props(1)        ! Young's modulus
       nu     = props(2)        ! Poisson's ratio
 
-      lambda = E*nu/((1+nu)*(1-2*nu))
-      mu     = E/(2*(1+nu))
+      lambda = E*nu/((one+nu)*(one-two*nu))
+      mu     = E/(two*(one+nu))
 
       do i = 1,3
         do j = 1,3
@@ -496,10 +496,10 @@
             do l = 1,3
               Cmat(i,j,k,l) = lambda* ID3(i,j)*ID3(k,l) +
      &             mu*( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
-            enddo
-          enddo
-        enddo
-      enddo
+            end do
+          end do
+        end do
+      end do
 
       ! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
       call symtangent2matrix(Cmat, VoigtMat)
@@ -524,7 +524,7 @@
         call voigtTruncate(stressVoigt,stress)
         call voigtTruncate(strainVoigt,strain)
 
-      elseif (analysis .eq. '3D') then
+      else if (analysis .eq. '3D') then
         Dmat    = VoigtMat
         stress  = stressVoigt
         strain  = strainVoigt
