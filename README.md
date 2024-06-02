@@ -24,12 +24,12 @@ Alternatively, you can download the files in a `zip` folder in this repository u
 
 ## Description of the repository
 
-All the source codes are located in the `src` subdirectory and the Abaqus test cases are located in the `tests` subdirectory. The documentations are available in the `docs` subdirectory. Compiling the source code requires Intel oneMKL library. [See this blog post](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) to learn how to link Intel oneMKL library to Abaqus user subroutines.
+All the source codes are located in the `src` subdirectory and the Abaqus test cases are located in the `tests` subdirectory. The documentations are available in the `docs` subdirectory. Compiling the source code requires Intel oneMKL library. Compiling the source code requires the LAPACK library from the Intel oneMKL package. See below for the details.
 
 |   File name  |  Description  |
 | ----------   | ------------- |
 | `uel_mech.for` | is the Fortran source code that implements the isotropic linear elastic user element. The main `UEL` subroutine performs all the initial checks but the main calculations are performed in a subsequent subroutine. The source code includes additional subroutines with Lagrangian interpolation functions for 4 types of 2D continuum elements (Tri3, Tri6, Quad4, and Quad8) and 4 types of 3D continuum elements (Tet4, Tet10, Hex8, Hex20) and Gaussian quadratures with reduced and full integration schemes. Body force and traction boundary conditions were not been included in this implementation, however, these can be applied by overlaying standard Abaqus elements on the user elements (to be discussed in the **Modeling in Abaqus** section). Since Abaqus/Viewer does not provide native support for visualizing user elements, an additional layer of elements with the same element connectivity has been created and results at the integration points of the elements are stored using the `UVARM` subroutine. |
-| `<some_module>.for` | These are the utility files with different Fortran module that are included in the main source file using `include <filename.ext>` statement. |
+| `<some_module>.for` | These are the utility files with different Fortran module that are included in the main source file using `include <filename.ext>` statement at the beginning of the main source code. |
 | `addElemMech.py` | is a Python code in the `tests` directory that modifies a simple Abaqus input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
 | `<...>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
 | `abaqus_v6.env` | is the Abaqus environment file which adds the additional compiling option for the Intel oneMKL library. This needs to be in the same directory as the Abaqus jobs. |
@@ -66,7 +66,7 @@ To visualize the results, an additional set of built-in Abaqus elements with the
 
 ## Configuring Abaqus and executing the subroutine
 
-To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [this tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it before.
+To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [this blog tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it before. Additionally, [see this blog post](https://www.bibekanandadatta.com/blog/2024/lapack-Intel-Fortran-Abaqus/) to learn how to link and use LAPACK library from tge Intel oneMKL library to Abaqus user subroutines.
 
 Navigate to the `tests` directory. Open the `Abaqus command line terminal` or `cmd terminal` or `PowerShell terminal`, you can execute the following command from the directory to execute the subroutine. Make sure to use the right directory for the main source code.
 
