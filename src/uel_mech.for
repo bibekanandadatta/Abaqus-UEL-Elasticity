@@ -106,13 +106,13 @@
 ! **********************************************************************
 
       !! make sure to have the correct directory
-      include '../module/global_parameters.for'     ! global parameters module
-      include '../module/error_logging.for'         ! error/ debugging module
-      include '../module/linear_algebra.for'        ! linear algebra module
-      include '../module/lagrange_element.for'      ! Lagrange element module
-      include '../module/gauss_quadrature.for'      ! Guassian quadrature module
-      include '../module/solid_mechanics.for'       ! solid mechanics module
-      include '../module/post_processing.for'       ! post-processing module
+      include 'global_parameters.for'     ! global parameters module
+      include 'error_logging.for'         ! error/ debugging module
+      include 'linear_algebra.for'        ! linear algebra module
+      include 'lagrange_element.for'      ! Lagrange element module
+      include 'gauss_quadrature.for'      ! Guassian quadrature module
+      include 'solid_mechanics.for'       ! solid mechanics module
+      include 'post_processing.for'       ! post-processing module
 
 ! **********************************************************************
 ! ****************** ABAQUS USER ELEMENT SUBROUTINE ********************
