@@ -20,11 +20,13 @@ You can also `fork` the repository and sync as updates are deployed, develop you
 
 Alternatively, you can download the files in a `zip` folder in this repository using the `code` drop-down menu on the top right corner. In this approach, you will not receive any bug fixes and updates.
 
+> [!NOTE]
+> Compiling the source code requires the LAPACK library from the Intel oneMKL package. See below for the details.
 
 
 ## Description of the repository
 
-All the source codes are located in the `src` subdirectory and the Abaqus test cases are located in the `tests` subdirectory. The documentations are available in the `docs` subdirectory. Compiling the source code requires Intel oneMKL library. Compiling the source code requires the LAPACK library from the Intel oneMKL package. See below for the details.
+All the source codes are located in the `src` subdirectory and the Abaqus test cases are located in the `tests` subdirectory. The documentations are available in the `docs` subdirectory.
 
 |   File name  |  Description  |
 | ----------   | ------------- |
@@ -32,7 +34,7 @@ All the source codes are located in the `src` subdirectory and the Abaqus test c
 | `<some_module>.for` | These are the utility files with different Fortran module that are included in the main source file using `include <filename.ext>` statement at the beginning of the main source code. |
 | `addElemMech.py` | is a Python code in the `tests` directory that modifies a simple Abaqus input file and adds the overlaying dummy elements on the user elements. For complicated input files, this will not work properly and modification of this code will be required (optional). |
 | `<...>.inp` | are the example input files prepared to be executed with the user element subroutine. Since the user-defined elements share the same topology as one of the Abaqus built-in elements, those models were built in Abaqus/CAE and then exported as input files. Later those input files were modified to include keywords and data to include user element definitions, properties, and overlaying dummy elements. |
-| `abaqus_v6.env` | is the Abaqus environment file which adds the additional compiling option for the Intel oneMKL library. This needs to be in the same directory as the Abaqus jobs. |
+| `abaqus_v6.env` | is the Abaqus environment file for Windows systems which adds the additional compiling option for the Intel oneMKL package. This needs to be in the same directory as the Abaqus jobs. |
 | `runAbq.ps1` | is a PowerShell batch file in the `tests` directory that can execute the user subroutine and specified input file from the PowerShell terminal (optional). |
 | elastic_elem.pdf | is a summary of the theory and algorithm used to implement the provided source code. |
 | Abaqus_docs.pdf | is a collection of publicly available Abaqus documentation in PDF format related to the Abaqus UEL subroutine. The web versions of these documents are available at https://help.3ds.com. |
@@ -66,7 +68,7 @@ To visualize the results, an additional set of built-in Abaqus elements with the
 
 ## Configuring Abaqus and executing the subroutine
 
-To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [this blog tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it before. Additionally, [see this blog post](https://www.bibekanandadatta.com/blog/2024/lapack-Intel-Fortran-Abaqus/) to learn how to link and use LAPACK library from tge Intel oneMKL library to Abaqus user subroutines.
+To run user subroutines in Abaqus, you will need to install Intel Visual Studio and Intel oneAPI package and link them with Abaqus. Follow [this blog tutorial](https://www.bibekanandadatta.com/blog/2021/link-intel-and-vs-abaqus-2020/) if you have not done it before. Additionally, [see this blog post](https://www.bibekanandadatta.com/blog/2024/lapack-Intel-Fortran-Abaqus/) to learn how to link and use the LAPACK library from the Intel oneMKL package to Abaqus user subroutines.
 
 Navigate to the `tests` directory. Open the `Abaqus command line terminal` or `cmd terminal` or `PowerShell terminal`, you can execute the following command from the directory to execute the subroutine. Make sure to use the right directory for the main source code.
 

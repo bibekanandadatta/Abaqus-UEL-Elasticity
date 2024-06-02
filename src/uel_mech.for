@@ -3,7 +3,7 @@
 ! **********************************************************************
 ! * small strain displacement element with isotropic linear elasticity *
 ! **********************************************************************
-!                     BIBEKANANDA DATTA (C) MAY 2024
+!                   BIBEKANANDA DATTA (C) FEBRUARY 2024
 !                 JOHNS HOPKINS UNIVERSITY, BALTIMORE, MD
 ! **********************************************************************
 ! **********************************************************************
@@ -106,13 +106,13 @@
 ! **********************************************************************
 
       !! make sure to have the correct directory
-      include 'global_parameters.for'     ! global parameters module
-      include 'error_logging.for'         ! error/ debugging module
-      include 'linear_algebra.for'        ! linear algebra module
-      include 'lagrange_element.for'      ! Lagrange element module
-      include 'gauss_quadrature.for'      ! Guassian quadrature module
-      include 'solid_mechanics.for'       ! solid mechanics module
-      include 'post_processing.for'       ! post-processing module
+      include '../module/global_parameters.for'     ! global parameters module
+      include '../module/error_logging.for'         ! error/ debugging module
+      include '../module/linear_algebra.for'        ! linear algebra module
+      include '../module/lagrange_element.for'      ! Lagrange element module
+      include '../module/gauss_quadrature.for'      ! Guassian quadrature module
+      include '../module/solid_mechanics.for'       ! solid mechanics module
+      include '../module/post_processing.for'       ! post-processing module
 
 ! **********************************************************************
 ! ****************** ABAQUS USER ELEMENT SUBROUTINE ********************
@@ -171,7 +171,7 @@
         abqProcedure = 'STATIC'
       else
         call msg%ferror(flag=error, src='UEL',
-     &           msg='Incorrect Abaqus procedure. ', ia=lflags(1))
+     &           msg='Incorrect Abaqus procedure.', ia=lflags(1))
         call xit
       end if
 
@@ -185,7 +185,7 @@
       !! check to see if it's a general step or a linear purturbation step
       if(lflags(4).eq.1) then
         call msg%ferror(flag=error, src='UEL',
-     &      msg='The step should be a GENERAL step. ', ia=lflags(4))
+     &      msg='The step should be a GENERAL step.', ia=lflags(4))
         call xit
       end if
 
@@ -205,7 +205,7 @@
         uDOFEL    = nNode*uDOF      ! total displacement degrees of freedom in element
       else
         call msg%ferror( flag=error, src='UEL',
-     &            msg='Element is unavailable. ', ia=jtype )
+     &            msg='Element is unavailable.', ia=jtype )
         call xit
       end if
       
@@ -302,7 +302,7 @@
       real(wp)          :: strainVoigt(nSymm,1), dstrainVoigt(nSymm,1)
       real(wp)          :: stress(nStress,1), Dmat(nStress,nStress)
       real(wp)          :: Kuu(uDOFEl,uDOFEl), Ru(uDOFEl,1)
-      integer           :: i, j, intPt
+      integer           :: i, j, k, intPt
       type(element)     :: solidSmallStrain
       type(logger)      :: msg
 
@@ -324,10 +324,12 @@
 
       !!!!!!!!!!!!! END VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!
 
-      ! if applicable gather the prescribed field variables in a vector
-      ! such as temperature (as shown below in commented line - not tested)
-      ! fieldNode(1,1:nNode) = predef(1,1,1:nNode)
-      ! dfieldNode(1,1:nNode) = predef(2,1,1:nNode)
+      ! if applicable gather the prescribed field variables in a matrix
+      ! such as temperature/ something (as shown below - not yet tested)
+      ! do k = 1 , npredf
+      !   fieldNode(k,1:nNode) = predef(1,k,1:nNode)
+      !   dfieldNode(k,1:nNode) = predef(2,k,1:nNode)
+      ! end do
 
       !!!!!!!!!!!!!!!!! ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!!!!!!!
 
@@ -347,7 +349,7 @@
 
         if (detJ .lt. zero) then
           call msg%ferror( flag=warn, src='uelMech',
-     &          msg='Negative element jacobian. ', ivec=[jelem, intpt])
+     &          msg='Negative element jacobian.', ivec=[jelem, intpt])
         end if
 
         !! loop over all the nodes (internal loop)
@@ -375,7 +377,7 @@
 
           else
             call msg%ferror( flag=error, src='uelMech',
-     &                msg='Wrong analysis. ', ch=analysis )
+     &                msg='Wrong analysis.', ch=analysis )
             call xit
           end if
 
@@ -396,12 +398,14 @@
         call voigtAugment(strain,strainVoigt)
         call voigtAugment(dstrain,dstrainVoigt)
 
-      ! interpolate additional field variable at the integration point
-      ! (as shown below - not tested)
-  !     fieldVar = dot_product(reshape(Nxi,(/nNode/)),
-  !  &                        reshape(fieldNode,(/nNode/)))
-  !     dfieldVar = dot_product(reshape(Nxi,(/nNode/)),
-  !  &                        reshape(dfieldNode,(/nNode/)))
+        !! interpolate the field variables at the integration point
+        !! (this not yet tested or used)
+    !     do k = 1, npredf
+    !       fieldVar(k)   = dot_product( Nxi, 
+    !  &                    reshape( fieldNode(k,1:nNode), [nNode] ) )
+    !       dfieldVar(k)  = dot_product( Nxi, 
+    !  &                    reshape( dfieldNode(k,1:nNode), [nNode] ) )
+    !     end do
 
       ! call material point subroutine (UMAT) for specific material
         call umatElastic(stress,Dmat,strainVoigt,dstrainVoigt,
@@ -530,7 +534,7 @@
         strain  = strainVoigt
       else
         call msg%ferror(flag=error, src='umatElastic',
-     &                  msg='Wrong analysis. ', ch=analysis)
+     &                  msg='Wrong analysis.', ch=analysis)
         call xit
       end if
 
