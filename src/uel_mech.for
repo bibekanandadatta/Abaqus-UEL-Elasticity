@@ -6,7 +6,6 @@
 !                     BIBEKANANDA DATTA (C) MAY 2024
 !                 JOHNS HOPKINS UNIVERSITY, BALTIMORE, MD
 ! **********************************************************************
-! **********************************************************************
 !                       JTYPE DEFINITION
 !
 !     U1                THREE-DIMENSIONAL TET4 ELEMENT
@@ -255,18 +254,20 @@
       ! loop through all the integration points (main/ external loop)
       do intPt = 1, nInt
 
-        call evalInterpFunc(solidSmallStrain,xi(intPt,:),Nxi,dNdxi)
+        call calcInterpFunc(solidSmallStrain,xi(intPt,:),Nxi,dNdxi)
 
         ! calculate element jacobian and global shape func gradient
-        dxdxi = matmul(coords,dNdxi)        ! calculate dxdxi
-        detJ  = det(dxdxi)                  ! calculate determinant
-        dxidx = inv(dxdxi)                  ! calculate inverse
-        dNdx  = matmul(dNdxi,dxidx)         ! calculate dNdx
+        dxdxi = matmul(coords,dNdxi)        ! calculate jacobian (dxdxi)
+        detJ  = det(dxdxi)                  ! calculate jacobian determinant
 
         if (detJ .lt. zero) then
           call msg%ferror( flag=warn, src='uelMech',
      &          msg='Negative element jacobian.', ivec=[jelem, intpt])
         end if
+
+        dxidx = inv(dxdxi)                  ! calculate jacobian inverse
+        dNdx  = matmul(dNdxi,dxidx)         ! calculate dNdx
+
 
         ! loop over all the nodes (internal loop)
         do i=1,nNode
@@ -349,7 +350,7 @@
 
       ! assign the element stiffness matrix to abaqus-defined variables
       AMATRX(1:NDOFEL,1:NDOFEL) = Kuu(1:uDOFEl,1:uDOFEl)
-      RHS(1:MLVARX,1)           = Ru(1:uDOFEl,1)
+      RHS(1:NDOFEL,1)           = Ru(1:uDOFEl,1)
 
 
       end subroutine uelMech
@@ -393,12 +394,13 @@
 
       real(wp), intent(in)  :: strainVoigt(nSymm,1)
       real(wp), intent(in)  :: dstrainVoigt(nSymm,1)
-      real(wp), intent(in)  :: svars(nsvars)
       real(wp), intent(in)  :: fieldVar(npredf)
       real(wp), intent(in)  :: dfieldVar(npredf)
 
       ! output from this subroutine
-      real(wp), intent(out) :: stress(nStress,1), Dmat(nStress,nStress)
+      real(wp), intent(out)               :: stress(nStress,1)
+      real(wp), intent(out)               :: Dmat(nStress,nStress)
+      real(wp), intent(inout), optional   :: svars(nsvars)
 
       ! variables local to the subroutine
       real(wp)              :: E, nu, lambda, mu
@@ -483,7 +485,7 @@
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD)
 
-      ! This subroutine is called by Abaqus with following arguments
+      ! This subroutine is called by Abaqus with above arguments
       ! for each user elements defined in an Abaqus model. Users are
       ! responsible for programming the element tangent/ stiffness
       ! matrix and residual vectors which will be then assembled and
@@ -561,14 +563,14 @@
       end if
 
 
-      ! assign parameters specific to element types
-      if ((jtype.ge.1).and.(jtype.le.4)) then
+      ! set parameters specific to analysis and element types
+      if ((jtype .ge. 1).and.(jtype .le. 4)) then
         nDim      = 3
         analysis  = '3D'            ! three-dimensional analysis
         nStress   = 6
         uDOF      = nDim            ! displacement degrees of freedom of a node
         uDOFEL    = nNode*uDOF      ! total displacement degrees of freedom in element
-      else if ((jtype.ge.5).and.(jtype.le.8)) then
+      else if ((jtype .ge. 5).and.(jtype .le. 8)) then
         nDim      = 2
         analysis  = 'PE'            ! plane strain analysis
         nStress   = 3
