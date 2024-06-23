@@ -155,7 +155,7 @@
 
       implicit none
 
-      !!!!!!!!!!!!!!! VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!!!
+      !!!!!!!!!!!! VARIABLE DECLARATION AND INITIALIZATION !!!!!!!!!!!!!
 
       DIMENSION RHS(MLVARX,*),AMATRX(NDOFEL,NDOFEL),PROPS(*),
      &    SVARS(*),ENERGY(8),COORDS(MCRD,NNODE),UAll(NDOFEL),
@@ -233,9 +233,6 @@
       Bmat  = zero
       Kuu   = zero
       Ru    = zero
-
-      AMATRX(1:NDOFEL,1:NDOFEL) = zero
-      RHS(1:MLVARX,1)           = zero
 
       !!!!!!!!!!!!! END VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!
 
@@ -316,7 +313,7 @@
         call voigtAugment(dstrain,dstrainVoigt)
 
     !     ! interpolate the field variables at the integration point
-    !     ! (this not yet tested or used)
+    !     ! (CAUTION: this is not yet tested or used in UEL)
     !     do k = 1, npredf
     !       fieldVar(k)   = dot_product( Nxi,
     !  &                    reshape( fieldNode(k,1:nNode), [nNode] ) )
@@ -324,7 +321,7 @@
     !  &                    reshape( dfieldNode(k,1:nNode), [nNode] ) )
     !     end do
 
-      ! call material point subroutine (UMAT) for specific material
+        ! call material point subroutine (UMAT) for specific material
         call umatElastic(kstep,kinc,time,dtime,nDim,analysis,
      &            nstress,nNode,jelem,coords,intpt,props,nprops,
      &            jprops,njprops,strainVoigt,dstrainVoigt,
@@ -336,16 +333,17 @@
 
       !!!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!
 
-        Kuu = Kuu +
-     &       w(intPt)*detJ*matmul(transpose(Bmat), matmul(Dmat,Bmat))
-        Ru  = Ru - w(intPt)*detJ* matmul(transpose(Bmat),stress)
+        Kuu = Kuu + w(intPt) * detJ 
+     &        * matmul(transpose(Bmat), matmul(Dmat,Bmat))
+
+        Ru  = Ru - w(intPt) * detJ * matmul(transpose(Bmat),stress)
 
         !!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!!
 
       end do                             ! end of integration point loop
 
 
-      ! body force and surface load can be added using overlaying elements
+      ! body force and surface loads can be added using overlaying elements
 
 
       ! assign the element stiffness matrix to abaqus-defined variables
@@ -420,15 +418,17 @@
       E      = props(1)        ! Young's modulus
       nu     = props(2)        ! Poisson's ratio
 
+      ! calculate Lame's parameters
       lambda = E*nu/((one+nu)*(one-two*nu))
       mu     = E/(two*(one+nu))
 
+      ! calculate the fourth-order elasticity tensor
       do i = 1,3
         do j = 1,3
           do k = 1,3
             do l = 1,3
-              Cmat(i,j,k,l) = lambda* ID3(i,j)*ID3(k,l) +
-     &             mu*( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
+              Cmat(i,j,k,l) = lambda * ID3(i,j)*ID3(k,l) 
+     &              + mu * ( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
             end do
           end do
         end do
@@ -437,7 +437,7 @@
       ! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
       call symtangent2matrix(Cmat, VoigtMat)
 
-      ! calculate stress in Voigt vector form
+      ! calculate stress in Voigt vector form (6x1)
       stressVoigt = matmul(VoigtMat, strainVoigt)
 
       ! save solution-dependent state variables in SVARS
@@ -528,6 +528,11 @@
       character(len=256)    :: jobName
       character(len=512)    :: errFile, dbgFile
       type(logger)          :: msg
+
+      ! initialize the output variables to be defined for Abaqus subroutine
+      energy        = zero
+      amatrx        = zero
+      rhs(:,nrhs)   = zero
 
       ! Open an error and debug file for the current job.
       ! See Abaqus documentation for Fortran unit number.
