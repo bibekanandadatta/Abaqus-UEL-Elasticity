@@ -6,6 +6,7 @@
 !                     BIBEKANANDA DATTA (C) MAY 2024
 !                 JOHNS HOPKINS UNIVERSITY, BALTIMORE, MD
 ! **********************************************************************
+!
 !                       JTYPE DEFINITION
 !
 !     U1                THREE-DIMENSIONAL TET4 ELEMENT
@@ -18,7 +19,18 @@
 !     U7                PLANE STRAIN QUAD4 ELEMENT
 !     U8                PLANE STRAIN QUAD8 ELEMENT
 !
+!     U9                PLANE STRESS TRI3 ELEMENT
+!     U10               PLANE STRESS TRI6 ELEMENT
+!     U11               PLANE STRESS QUAD4 ELEMENT
+!     U12               PLANE STRESS QUAD8 ELEMENT
+!
+!     U13               AXISYMMETRIC TRI3 ELEMENT
+!     U14               AXISYMMETRIC TRI6 ELEMENT
+!     U15               AXISYMMETRIC QUAD4 ELEMENT
+!     U16               AXISYMMETRIC QUAD8 ELEMENT
+!
 ! **********************************************************************
+!
 !          VOIGT NOTATION CONVENTION FOR STRESS/ STRAIN TENSORS
 !
 !       In this subroutine we adopted the following convention for
@@ -29,18 +41,21 @@
 !       strain11, strain22, strain33, strain23, strain13, strain12
 !
 ! **********************************************************************
+!
 !                       LIST OF MATERIAL PROPERTIES
 !
 !     props(1)   = E                Young's modulus
 !     props(2)   = nu               Poisson ratio
 !
 ! **********************************************************************
+!
 !                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
 !     jprops(2)   = nPostVars       no of local (int pt) post-processing variables
 !
 ! **********************************************************************
+!
 !                        POST-PROCESSED VARIABLES
 !                     (follows the convention above)
 !
@@ -48,6 +63,7 @@
 !     uvar(nStress+1:2*nStress)       Small train tensor components
 !
 ! **********************************************************************
+!
 !               VARIABLES TO BE UPDATED WITHIN THE SUBROUTINE
 !
 !     RHS(i)                        Right hand side vector.
@@ -102,6 +118,7 @@
 !     LFLAGS                        Load type control variable
 !     MLVARX                        Dimension variable
 !     PERIOD                        Time period of the current step
+!
 ! **********************************************************************
 
       ! make sure to have the correct directory
@@ -134,18 +151,18 @@
      & PROPS,NPROPS,COORDS,MCRD,NNODE,Uall,DUall,Vel,Accn,JTYPE,TIME,
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD,
-     & NDIM,ANALYSIS,NSTRESS,NINT,UDOF,UDOFEL)
+     & NDIM,ANALYSIS,NSTRESS,NINT)
 
-      ! This subroutine contains the standard displacement-based 
+      ! This subroutine contains the standard displacement-based
       ! element formulation for static/ quasi-static small deformation
-      ! of solids. It calls the material model subroutine at each 
+      ! of solids. It calls the material model subroutine at each
       ! integration point to obtain the stress vector and stiffness
       ! matrix used in the formulation. Currently available elements
-      ! are 2D and 3D continuum elements of different shapes (TRI, 
-      ! QUAD, TET, HEX) and polynomial order (linear and quadratic) 
-      ! with full and reduced integration. No specialzed numerical 
+      ! are 2D and 3D continuum elements of different shapes (TRI,
+      ! QUAD, TET, HEX) and polynomial order (linear and quadratic)
+      ! with full and reduced integration. No specialzed numerical
       ! technique was employed to alleviate volumetric locking.
-      
+
       use global_parameters
       use error_logging
       use linear_algebra
@@ -174,8 +191,7 @@
       real(wp), intent(in)  :: DDLMAG, PERIOD
 
       character(len=2), intent(in)    :: analysis
-      integer, intent(in)             :: nDim, nStress
-      integer, intent(in)             :: uDOF, uDOFEL, nInt
+      integer, intent(in)             :: nDim, nStress, nInt
 
       ! output of the suboutine
       real(wp), intent(out)           :: RHS, AMATRX
@@ -194,8 +210,9 @@
       ! element operator matrices
       real(wp)              :: dxdxi(nDim,nDim), dxidx(nDim,nDim)
       real(wp)              :: dNdx(nNode,nDim), detJ
-      real(wp)              :: Na(nDim,nDim), Nmat(nDim,uDOFEl)
-      real(wp)              :: Ba(nStress,nDim), Bmat(nStress,uDOFEl)
+      real(wp)              :: Na(nDim,nDim), Nmat(nDim,nDOFEL)
+      real(wp)              :: Ba(nStress,nDim), Bmat(nStress,nDOFEL)
+      real(wp)              :: r, Ar
 
       ! material point quantities (variables)
       real(wp)              :: strain(nStress,1), dstrain(nStress,1)
@@ -209,18 +226,13 @@
       real(wp)              :: dfieldNode(npredf,nNode)
       real(wp)              :: fieldVar(npredf), dfieldVar(npredf)
 
+      integer               :: i, j, k, intPt       ! loop counter variables
+      type(element)         :: solidSmallStrain     ! element type
+      type(logger)          :: msg                  ! logger
+
       ! element stiffness matrix and residual vector
-      real(wp)              :: Kuu(uDOFEl,uDOFEl), Ru(uDOFEl,1)
+      real(wp)              :: Kuu(nDOFEL,nDOFEL), Ru(nDOFEL,1)
 
-      ! loop counter variables
-      integer               :: i, j, k, intPt
-
-      ! element type
-      type(element)         :: solidSmallStrain
-      ! logger
-      type(logger)          :: msg
-
-      ! user coding to define RHS, AMATRX, SVARS, ENERGY, and PNEWDT
 
       ! set the element parameters
       solidSmallStrain = element( nDim=nDim, analysis=analysis,
@@ -234,10 +246,11 @@
       Kuu   = zero
       Ru    = zero
 
-      !!!!!!!!!!!!! END VARIABLE DECLARATION AND INITIALTION !!!!!!!!!!!
+      !!!!!!!!!! END VARIABLE DECLARATION AND INITIALIZATION !!!!!!!!!!!
 
       ! ! if applicable gather the prescribed field variables in a matrix
-      ! ! such as temperature/ something (as shown below - not yet tested)
+      ! ! such as temperature/ something as shown below
+      ! ! (CAUTION: this approach is not yet tested in the UEL)
       ! do k = 1 , npredf
       !   fieldNode(k,1:nNode) = predef(1,k,1:nNode)
       !   dfieldNode(k,1:nNode) = predef(2,k,1:nNode)
@@ -274,14 +287,8 @@
             Na(j,j) = Nxi(i)
           end do
 
-          ! form [Ba] matrix: plane stress/ plane strain case
-          if (analysis.eq.'PE') then
-            Ba(1,1)       = dNdx(i,1)
-            Ba(2,2)       = dNdx(i,2)
-            Ba(3,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
-
           ! form [Ba] matrix: 3D case
-          else if (analysis.eq.'3D') then
+          if (analysis .eq. '3D') then
             Ba(1,1)       = dNdx(i,1)
             Ba(2,2)       = dNdx(i,2)
             Ba(3,3)       = dNdx(i,3)
@@ -289,9 +296,25 @@
             Ba(5,1:nDim)  = [dNdx(i,3),     zero,     dNdx(i,1)]
             Ba(6,1:nDim)  = [dNdx(i,2),   dNdx(i,1),    zero   ]
 
+          ! form [Ba] matrix: plane stress/ plane strain case
+          else if ((analysis .eq. 'PE') .or. (analysis .eq. 'PS')) then
+            Ba(1,1)       = dNdx(i,1)
+            Ba(2,2)       = dNdx(i,2)
+            Ba(3,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
+
+          ! CAUTION: axisymmetric elements are not validated yet
+          else if (analysis .eq. 'AX') then
+            r             = dot_product(Nxi,coords(1,:))
+            Ar            = two*pi*r
+
+            Ba(1,1)       = dNdx(i,1)
+            Ba(2,2)       = dNdx(i,2)
+            Ba(3,1)       = Nxi(i)/r
+            Ba(4,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
+
           else
             call msg%ferror(flag=error, src='uelMech',
-     &                      msg='Wrong analysis.', ch=analysis)
+     &           msg='Wrong analysis.', ch=analysis)
             call xit
           end if
 
@@ -306,11 +329,11 @@
       !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!!!
 
         ! calculate strain, dstrain, or deformation gradient
-        strain  = matmul( Bmat, reshape(Uall(1:uDOFEl),[uDOFEL,1]) )
-        dstrain = matmul( Bmat, reshape(DUall(1:uDOFEl,1),[uDOFEL,1]) )
+        strain  = matmul( Bmat, reshape(Uall(1:nDOFEL), [nDOFEL,1]) )
+        dstrain = matmul( Bmat, reshape(DUall(1:nDOFEL,1), [nDOFEL,1]) )
 
-        call voigtAugment(strain,strainVoigt)
-        call voigtAugment(dstrain,dstrainVoigt)
+        call voigtVectorAugment(strain,strainVoigt)
+        call voigtVectorAugment(dstrain,dstrainVoigt)
 
     !     ! interpolate the field variables at the integration point
     !     ! (CAUTION: this is not yet tested or used in UEL)
@@ -333,10 +356,16 @@
 
       !!!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!
 
-        Kuu = Kuu + w(intPt) * detJ 
-     &        * matmul(transpose(Bmat), matmul(Dmat,Bmat))
+        Kuu = Kuu + w(intPt) * detJ *
+     &        matmul(transpose(Bmat), matmul(Dmat,Bmat))
 
         Ru  = Ru - w(intPt) * detJ * matmul(transpose(Bmat),stress)
+
+        ! modify the formulaton for axisymmetric elements
+        if (analysis .eq. 'AX') then
+          Kuu   = Ar * Kuu
+          Ru    = Ar * Ru
+        end if
 
         !!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!!
 
@@ -347,8 +376,8 @@
 
 
       ! assign the element stiffness matrix to abaqus-defined variables
-      AMATRX(1:NDOFEL,1:NDOFEL) = Kuu(1:uDOFEl,1:uDOFEl)
-      RHS(1:NDOFEL,1)           = Ru(1:uDOFEl,1)
+      AMATRX(1:NDOFEL,1:NDOFEL) = Kuu(1:nDOFEL,1:nDOFEL)
+      RHS(1:NDOFEL,1)           = Ru(1:nDOFEL,1)
 
 
       end subroutine uelMech
@@ -402,16 +431,20 @@
 
       ! variables local to the subroutine
       real(wp)              :: E, nu, lambda, mu
-      real(wp)              :: Cmat(3,3,3,3), VoigtMat(nSymm,nSymm)
+      real(wp)              :: Cmat(3,3,3,3)
+      real(wp)              :: VoigtMat(nSymm,nSymm)
+      real(wp)              :: Dmat2D(4,4)
       real(wp)              :: stressVoigt(nSymm,1)
       real(wp)              :: strain(nStress,1)
 
       integer               :: i, j, k, l             ! loop counters
-      type(logger)          :: msg
+      type(logger)          :: msg                    ! object for error logging
+
 
       ! initialize matrial stiffness tensors
       Cmat   = zero
       Dmat   = zero
+      Dmat2D = zero
 
 
       ! assign material properties to variables
@@ -427,7 +460,7 @@
         do j = 1,3
           do k = 1,3
             do l = 1,3
-              Cmat(i,j,k,l) = lambda * ID3(i,j)*ID3(k,l) 
+              Cmat(i,j,k,l) = lambda * ID3(i,j)*ID3(k,l)
      &              + mu * ( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
             end do
           end do
@@ -435,7 +468,7 @@
       end do
 
       ! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
-      call symtangent2matrix(Cmat, VoigtMat)
+      call voigtMatrix(Cmat, VoigtMat)
 
       ! calculate stress in Voigt vector form (6x1)
       stressVoigt = matmul(VoigtMat, strainVoigt)
@@ -446,26 +479,38 @@
       ! also perhpas in other time-dependent field problems
       ! do other calculations as needed based on SVARS.
 
-      ! reshape the Voigt form based on analysis
-      if (analysis .eq. 'PE') then
-        Dmat(1:ndim,1:ndim)     = VoigtMat(1:ndim,1:ndim)
-        Dmat(1:ndim,nStress)    = VoigtMat(1:ndim,nSymm)
-        Dmat(nStress,1:ndim)    = VoigtMat(nSymm,1:ndim)
-        Dmat(nStress,nStress)   = VoigtMat(nSymm,nSymm)
+      ! truncate tangent moduli matrix and stress vector (based on the analysis)
+      if ((analysis .eq. '3D') .or. (analysis .eq. 'PE')
+     &    .or. (analysis .eq. 'AX')) then
+        call voigtMatrixTruncate(VoigtMat, Dmat)
+        call voigtVectorTruncate(stressVoigt, stress)
 
-        ! calculate stress vector (Voigt notation)
-        call voigtTruncate(stressVoigt,stress)
-        call voigtTruncate(strainVoigt,strain)
+        ! truncate strain for post-processing
+        call voigtVectorTruncate(strainVoigt, strain)
 
-      else if (analysis .eq. '3D') then
-        Dmat    = VoigtMat
-        stress  = stressVoigt
-        strain  = strainVoigt
-      else
-        call msg%ferror(flag=error, src='umatElastic',
-     &                  msg='Wrong analysis.', ch=analysis)
-        call xit
+      else if (analysis .eq. 'PS') then
+        ! truncate the voigt matrix to a temporary Dmat (4x4)
+        call voigtMatrixTruncate(VoigtMat, Dmat2D)
+
+        ! modify the temporary Dmat for plane stress condition
+        do i = 1, 4
+          do j = 1, 4
+            Dmat2D(i,j) = Dmat2D(i,j)
+     &                  - ( Dmat2D(i,3)*Dmat2D(3,j) )/VoigtMat(3,3)
+          end do
+        end do
+
+        ! truncate Dmat2D further to dimension: nstress x nstress
+        call voigtMatrixTruncate(Dmat2D, Dmat)
+
+        ! truncate strain tensor for calculating stress and post-processing
+        call voigtVectorTruncate(strainVoigt, strain)
+
+        ! calculate Cauchy stress
+        stress = matmul(Dmat,strain)
+
       end if
+
 
       ! save the variables to be post-processed in globalPostVars
       globalPostVars(jelem,intPt,1:nStress) = stress(1:nStress,1)
@@ -517,11 +562,11 @@
       real(wp), intent(out)           :: RHS, AMATRX
       real(wp), intent(out), optional :: SVARS, ENERGY, PNEWDT
 
-      integer               :: nInt, nPostVars
-      integer               :: nDim, nStress, uDOF, uDOFEL
-      character(len=2)      :: analysis
       character(len=8)      :: abqProcedure
+      integer               :: nDim, nStress
+      character(len=2)      :: analysis
       logical               :: nlgeom
+      integer               :: nInt, nPostVars
 
       integer               :: lenJobName,lenOutDir
       character(len=256)    :: outDir
@@ -545,46 +590,52 @@
       call msg%fopen( errfile=errFile, dbgfile=dbgFile )
 
       ! change the LFLAGS criteria as needed (check Abaqus UEL manual)
-      if( (lflags(1) .eq. 1) .or. (lflags(1) .eq. 2) ) then
+      if( (lflags(1)  .eq.  1) .or. (lflags(1)  .eq.  2) ) then
         abqProcedure = 'STATIC'
       else
         call msg%ferror(flag=error, src='UEL',
-     &           msg='Incorrect Abaqus procedure.', ia=lflags(1))
+     &       msg='Incorrect Abaqus procedure.', ia=lflags(1))
         call xit
       end if
 
       ! check if the procedure is linear or nonlinear
-      if (lflags(2) .eq. 0) then
+      if (lflags(2)  .eq.  0) then
         nlgeom = .false.
-      else if (lflags(2).eq.1) then
+      else if (lflags(2) .eq. 1) then
         nlgeom = .true.
       end if
 
       ! check to see if it's a general step or a linear purturbation step
-      if(lflags(4) .eq. 1) then
+      if(lflags(4)  .eq.  1) then
         call msg%ferror(flag=error, src='UEL',
-     &      msg='The step should be a GENERAL step.', ia=lflags(4))
+     &       msg='The step should be a GENERAL step.', ia=lflags(4))
         call xit
       end if
 
 
       ! set parameters specific to analysis and element types
-      if ((jtype .ge. 1).and.(jtype .le. 4)) then
+      if ((jtype .ge. 1).and.(jtype .le. 4)) then         ! three-dimensional analysis
         nDim      = 3
-        analysis  = '3D'            ! three-dimensional analysis
+        analysis  = '3D'
         nStress   = 6
-        uDOF      = nDim            ! displacement degrees of freedom of a node
-        uDOFEL    = nNode*uDOF      ! total displacement degrees of freedom in element
-      else if ((jtype .ge. 5).and.(jtype .le. 8)) then
+      else if ((jtype .ge. 5).and.(jtype .le. 8)) then    ! plane strain analysis
         nDim      = 2
-        analysis  = 'PE'            ! plane strain analysis
+        analysis  = 'PE'
         nStress   = 3
-        uDOF      = nDim            ! displacement degrees of freedom of a node
-        uDOFEL    = nNode*uDOF      ! total displacement degrees of freedom in element
+      else if ((jtype .ge. 9).and.(jtype .le. 12)) then   ! plane stress analysis
+        nDim      = 2
+        analysis  = 'PS'
+        nStress   = 3
+      else if ((jtype .ge. 13).and.(jtype .le. 16)) then  ! axisymmetric analysis
+        ! CAUTION: axisymmetric elements are not validated yet
+        nDim      = 2
+        analysis  = 'AX'
+        nStress   = 4
       else
         call msg%ferror( flag=error, src='UEL',
-     &            msg='Element is unavailable.', ia=jtype )
+     &       msg='Element is unavailable.', ia=jtype )
         call xit
+
       end if
 
       nInt      = jprops(1)
@@ -597,6 +648,7 @@
          ! print job-related information the first time
         call msg%finfo('---------------------------------------')
         call msg%finfo('------- Abaqus SMALL STRAIN UEL -------')
+        call msg%finfo('--------- SOURCE: uel_mech.for --------')
         call msg%finfo('---------------------------------------')
         call msg%finfo('--- Abaqus Job: ', ch=trim(jobName))
         call msg%finfo('---------------------------------------')
@@ -622,7 +674,7 @@
      & PROPS,NPROPS,COORDS,MCRD,NNODE,Uall,DUall,Vel,Accn,JTYPE,TIME,
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD,
-     & NDIM,ANALYSIS,NSTRESS,NINT,UDOF,UDOFEL)
+     & NDIM,ANALYSIS,NSTRESS,NINT)
 
       END SUBROUTINE UEL
 
@@ -663,5 +715,19 @@
 
       END SUBROUTINE UVARM
 
+! **********************************************************************
+! **********************************************************************
+
+      SUBROUTINE DLOAD(F,KSTEP,KINC,TIME,NOEL,NPT,LAYER,KSPT,COORDS,
+     &                  JLTYP,SNAME)
+
+        INCLUDE 'ABA_PARAM.INC'
+
+        DIMENSION COORDS(2)
+        CHARACTER*80 SNAME
+
+        F=-400.0d0/COORDS(1)
+
+      END SUBROUTINE DLOAD
 ! **********************************************************************
 ! **********************************************************************
