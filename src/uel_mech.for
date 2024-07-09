@@ -29,6 +29,7 @@
 !     U15               AXISYMMETRIC QUAD4 ELEMENT
 !     U16               AXISYMMETRIC QUAD8 ELEMENT
 !
+!     CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
 ! **********************************************************************
 !
 !          VOIGT NOTATION CONVENTION FOR STRESS/ STRAIN TENSORS
@@ -87,10 +88,10 @@
 !     NDOFEL                        Total # DOF for the element
 !     NRHS                          Dimension variable
 !     NSVARS                        Total # element state variables
-!     PROPS(1:NPROPS)               User-specified properties of the element
 !     NPROPS                        No. properties
-!     JPROPS(1:NJPROPS)             Integer valued user specified properties for the element
+!     PROPS(1:NPROPS)               User-specified properties of the element
 !     NJPROPS                       No. integer valued properties
+!     JPROPS(1:NJPROPS)             Integer valued user specified properties for the element
 !     COORDS(i,N)                   ith coordinate of Nth node on element
 !     MCRD                          Maximum of (# coords,minimum of (3,#DOF)) on any node
 !     Uall                          Vector of DOF at the end of the increment
@@ -106,16 +107,17 @@
 !     JELEM                         User assigned element number in ABAQUS
 !     PARAMS(1:3)                   Time increment parameters alpha, beta, gamma for implicit dynamics
 !     NDLOAD                        Number of user-defined distributed loads defined for this element
+!     MDLOAD                        Number of user-defined distributed loads active for this element
 !     JDLTYP(1:NDLOAD)              Integers n defining distributed load types defined as Un or (if negative) UnNU in input file
 !     ADLMAG(1:NDLOAD)              Distributed load magnitudes
+!     NPREDF                        Number of predefined fields
 !     DDLMAG(1:NDLOAD)              Increment in distributed load magnitudes
 !     PREDEF(1:2,1:NPREDF,1:NNODE)  Predefined fields.
 !     PREDEF(1,...)                 Value of predefined field
 !     PREDEF(2,...)                 Increment in predefined field
 !     PREDEF(1:2,1,k)               Value of temperature/temperature increment at kth node
 !     PREDEF(1:2,2:NPREDF,k)        Value of user defined field/field increment at kth node
-!     NPREDF                        Number of predefined fields
-!     LFLAGS                        Load type control variable
+!     LFLAGS                        Load type control variable (see Abaqus documentation)
 !     MLVARX                        Dimension variable
 !     PERIOD                        Time period of the current step
 !
@@ -280,7 +282,7 @@
 
 
         ! loop over all the nodes (internal loop)
-        do i=1,nNode
+        do i = 1, nNode
 
           ! form the nodal-level matrices: [Na]
           do j = 1, nDim
@@ -302,10 +304,10 @@
             Ba(2,2)       = dNdx(i,2)
             Ba(3,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
 
-          ! CAUTION: axisymmetric elements are not validated yet
+          ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
           else if (analysis .eq. 'AX') then
             r             = dot_product(Nxi,coords(1,:))
-            Ar            = two*pi*r
+            Ar            = two * pi * r
 
             Ba(1,1)       = dNdx(i,1)
             Ba(2,2)       = dNdx(i,2)
@@ -323,10 +325,10 @@
           Bmat(1:nStress,nDim*(i-1)+1:nDim*i) = Ba(1:nStress,1:nDim)
         end do                             ! end of nodal point loop
 
-      !!!!!!!!!!!!!! COMPLETE ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!! COMPLETE ELEMENT RELATED OPERATIONS !!!!!!!!!!!!!
 
 
-      !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!
 
         ! calculate strain, dstrain, or deformation gradient
         strain  = matmul( Bmat, reshape(Uall(1:nDOFEL), [nDOFEL,1]) )
@@ -351,20 +353,24 @@
      &            svars,nsvars,fieldVar,dfieldVar,npredf,
      &            stress,Dmat)
 
-      !!!!!!!!!!!!!!!!!!!! END CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!!!!!!!! END CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!
 
 
-      !!!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!
+        !!!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!
 
-        Kuu = Kuu + w(intPt) * detJ *
-     &        matmul(transpose(Bmat), matmul(Dmat,Bmat))
+        if ( (analysis .eq. '3D') .or. (analysis .eq. 'PE') 
+     &            .or. (analysis .eq. 'PS') ) then
+          Kuu = Kuu + w(intPt) * detJ * 
+     &          matmul( transpose(Bmat), matmul(Dmat,Bmat) )
+          Ru  = Ru - w(intPt) * detJ * matmul(transpose(Bmat),stress)
+  
+        ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
+        else if (analysis .eq. 'AX') then
+          Kuu = Kuu + w(intPt) * detJ * Ar *
+     &          matmul( transpose(Bmat), matmul(Dmat,Bmat) )
+          Ru  = Ru - w(intPt) * detJ * Ar *
+     &          matmul( transpose(Bmat),stress )
 
-        Ru  = Ru - w(intPt) * detJ * matmul(transpose(Bmat),stress)
-
-        ! modify the formulaton for axisymmetric elements
-        if (analysis .eq. 'AX') then
-          Kuu   = Ar * Kuu
-          Ru    = Ar * Ru
         end if
 
         !!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!!!!
@@ -480,6 +486,7 @@
       ! do other calculations as needed based on SVARS.
 
       ! truncate tangent moduli matrix and stress vector (based on the analysis)
+      ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
       if ((analysis .eq. '3D') .or. (analysis .eq. 'PE')
      &    .or. (analysis .eq. 'AX')) then
         call voigtMatrixTruncate(VoigtMat, Dmat)
