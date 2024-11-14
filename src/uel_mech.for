@@ -110,6 +110,7 @@
 !     JDLTYP(1:NDLOAD)              Integers n defining distributed load types defined as Un or (if negative) UnNU in input file
 !     ADLMAG(1:NDLOAD)              Distributed load magnitudes
 !     DDLMAG(1:NDLOAD)              Increment in distributed load magnitudes
+!     MDLOAD                        Total number of distributed load or flux defined for the element
 !     PREDEF(1:2,1:NPREDF,1:NNODE)  Predefined fields.
 !     PREDEF(1,...)                 Value of predefined field
 !     PREDEF(2,...)                 Increment in predefined field
@@ -123,13 +124,13 @@
 ! **********************************************************************
 
       ! make sure to have the correct directory
-      include '../module/global_parameters.for'     ! global parameters module
-      include '../module/error_logging.for'         ! error/ debugging module
-      include '../module/linear_algebra.for'        ! linear algebra module
-      include '../module/lagrange_element.for'      ! Lagrange element module
-      include '../module/gauss_quadrature.for'      ! Guassian quadrature module
-      include '../module/solid_mechanics.for'       ! solid mechanics module
-      include '../module/post_processing.for'       ! post-processing module
+      include 'global_parameters.for'     ! global parameters module
+      include 'error_logging.for'         ! error/ debugging module
+      include 'linear_algebra.for'        ! linear algebra module
+      include 'lagrange_element.for'      ! Lagrange element module
+      include 'gauss_quadrature.for'      ! Guassian quadrature module
+      include 'solid_mechanics.for'       ! solid mechanics module
+      include 'post_processing.for'       ! post-processing module
 
 ! **********************************************************************
 ! **********************************************************************
