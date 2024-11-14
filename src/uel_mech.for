@@ -29,7 +29,7 @@
 !     U15               AXISYMMETRIC QUAD4 ELEMENT
 !     U16               AXISYMMETRIC QUAD8 ELEMENT
 !
-!     CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
+!     CAUTION: AXISYMMETRIC ELEMENTS ARE NOT TESTED YET
 ! **********************************************************************
 !
 !          VOIGT NOTATION CONVENTION FOR STRESS/ STRAIN TENSORS
@@ -88,10 +88,10 @@
 !     NDOFEL                        Total # DOF for the element
 !     NRHS                          Dimension variable
 !     NSVARS                        Total # element state variables
-!     NPROPS                        No. properties
 !     PROPS(1:NPROPS)               User-specified properties of the element
-!     NJPROPS                       No. integer valued properties
+!     NPROPS                        No. properties
 !     JPROPS(1:NJPROPS)             Integer valued user specified properties for the element
+!     NJPROPS                       No. integer valued properties
 !     COORDS(i,N)                   ith coordinate of Nth node on element
 !     MCRD                          Maximum of (# coords,minimum of (3,#DOF)) on any node
 !     Uall                          Vector of DOF at the end of the increment
@@ -107,30 +107,29 @@
 !     JELEM                         User assigned element number in ABAQUS
 !     PARAMS(1:3)                   Time increment parameters alpha, beta, gamma for implicit dynamics
 !     NDLOAD                        Number of user-defined distributed loads defined for this element
-!     MDLOAD                        Number of user-defined distributed loads active for this element
 !     JDLTYP(1:NDLOAD)              Integers n defining distributed load types defined as Un or (if negative) UnNU in input file
 !     ADLMAG(1:NDLOAD)              Distributed load magnitudes
-!     NPREDF                        Number of predefined fields
 !     DDLMAG(1:NDLOAD)              Increment in distributed load magnitudes
 !     PREDEF(1:2,1:NPREDF,1:NNODE)  Predefined fields.
 !     PREDEF(1,...)                 Value of predefined field
 !     PREDEF(2,...)                 Increment in predefined field
 !     PREDEF(1:2,1,k)               Value of temperature/temperature increment at kth node
 !     PREDEF(1:2,2:NPREDF,k)        Value of user defined field/field increment at kth node
-!     LFLAGS                        Load type control variable (see Abaqus documentation)
+!     NPREDF                        Number of predefined fields
+!     LFLAGS                        Load type control variable
 !     MLVARX                        Dimension variable
 !     PERIOD                        Time period of the current step
 !
 ! **********************************************************************
 
       ! make sure to have the correct directory
-      include 'global_parameters.for'     ! global parameters module
-      include 'error_logging.for'         ! error/ debugging module
-      include 'linear_algebra.for'        ! linear algebra module
-      include 'lagrange_element.for'      ! Lagrange element module
-      include 'gauss_quadrature.for'      ! Guassian quadrature module
-      include 'solid_mechanics.for'       ! solid mechanics module
-      include 'post_processing.for'       ! post-processing module
+      include '../module/global_parameters.for'     ! global parameters module
+      include '../module/error_logging.for'         ! error/ debugging module
+      include '../module/linear_algebra.for'        ! linear algebra module
+      include '../module/lagrange_element.for'      ! Lagrange element module
+      include '../module/gauss_quadrature.for'      ! Guassian quadrature module
+      include '../module/solid_mechanics.for'       ! solid mechanics module
+      include '../module/post_processing.for'       ! post-processing module
 
 ! **********************************************************************
 ! **********************************************************************
@@ -216,7 +215,8 @@
       real(wp)              :: Ba(nStress,nDim), Bmat(nStress,nDOFEL)
       real(wp)              :: r, Ar
 
-      ! material point quantities (variables)
+      ! integration point quantities (variables)
+      real(wp)              :: coord_ip(nDim,1)
       real(wp)              :: strain(nStress,1), dstrain(nStress,1)
       real(wp)              :: strainVoigt(nSymm,1)
       real(wp)              :: dstrainVoigt(nSymm,1)
@@ -273,7 +273,7 @@
         detJ  = det(dxdxi)                  ! calculate jacobian determinant
 
         if (detJ .lt. zero) then
-          call msg%ferror( flag=warn, src='uelMech',
+          call  msg%ferror( flag=warn, src='uelMech',
      &          msg='Negative element jacobian.', ivec=[jelem, intpt])
         end if
 
@@ -282,7 +282,7 @@
 
 
         ! loop over all the nodes (internal loop)
-        do i = 1, nNode
+        do i=1,nNode
 
           ! form the nodal-level matrices: [Na]
           do j = 1, nDim
@@ -304,7 +304,6 @@
             Ba(2,2)       = dNdx(i,2)
             Ba(3,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
 
-          ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
           else if (analysis .eq. 'AX') then
             r             = dot_product(Nxi,coords(1,:))
             Ar            = two * pi * r
@@ -330,6 +329,9 @@
 
         !!!!!!!!!!!!!!!!!!!!! CONSTITUTIVE MODEL !!!!!!!!!!!!!!!!!!!!!!!
 
+        ! calculate the coordinate of integration point
+        coord_ip = matmul(Nmat, reshape(coords, [nDOFEL, 1]))
+
         ! calculate strain, dstrain, or deformation gradient
         strain  = matmul( Bmat, reshape(Uall(1:nDOFEL), [nDOFEL,1]) )
         dstrain = matmul( Bmat, reshape(DUall(1:nDOFEL,1), [nDOFEL,1]) )
@@ -348,7 +350,7 @@
 
         ! call material point subroutine (UMAT) for specific material
         call umatElastic(kstep,kinc,time,dtime,nDim,analysis,
-     &            nstress,nNode,jelem,coords,intpt,props,nprops,
+     &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
      &            jprops,njprops,strainVoigt,dstrainVoigt,
      &            svars,nsvars,fieldVar,dfieldVar,npredf,
      &            stress,Dmat)
@@ -364,7 +366,6 @@
      &          matmul( transpose(Bmat), matmul(Dmat,Bmat) )
           Ru  = Ru - w(intPt) * detJ * matmul(transpose(Bmat),stress)
   
-        ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
         else if (analysis .eq. 'AX') then
           Kuu = Kuu + w(intPt) * detJ * Ar *
      &          matmul( transpose(Bmat), matmul(Dmat,Bmat) )
@@ -391,7 +392,7 @@
 ! **********************************************************************
 
       subroutine umatElastic(kstep,kinc,time,dtime,nDim,analysis,
-     &            nstress,nNode,jelem,coords,intpt,props,nprops,
+     &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
      &            jprops,njprops,strainVoigt,dstrainVoigt,
      &            svars,nsvars,fieldVar,dfieldVar,npredf,
      &            stress,Dmat)
@@ -421,7 +422,7 @@
       integer, intent(in)   :: njprops, nsvars, npredf
 
       real(wp), intent(in)  :: time(2), dtime
-      real(wp), intent(in)  :: coords(nDim,nNode)
+      real(wp), intent(in)  :: coord_ip(nDim,1)
       real(wp), intent(in)  :: props(nprops)
       integer,  intent(in)  :: jprops(njprops)
 
@@ -486,7 +487,7 @@
       ! do other calculations as needed based on SVARS.
 
       ! truncate tangent moduli matrix and stress vector (based on the analysis)
-      ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT VALIDATED YET
+      ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT TESTED YET
       if ((analysis .eq. '3D') .or. (analysis .eq. 'PE')
      &    .or. (analysis .eq. 'AX')) then
         call voigtMatrixTruncate(VoigtMat, Dmat)
@@ -634,11 +635,11 @@
         analysis  = 'PS'
         nStress   = 3
       else if ((jtype .ge. 13).and.(jtype .le. 16)) then  ! axisymmetric analysis
-        ! CAUTION: axisymmetric elements are not validated yet
         nDim      = 2
         analysis  = 'AX'
         nStress   = 4
       else
+
         call msg%ferror( flag=error, src='UEL',
      &       msg='Element is unavailable.', ia=jtype )
         call xit
