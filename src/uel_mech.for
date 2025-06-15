@@ -110,7 +110,6 @@
 !     JDLTYP(1:NDLOAD)              Integers n defining distributed load types defined as Un or (if negative) UnNU in input file
 !     ADLMAG(1:NDLOAD)              Distributed load magnitudes
 !     DDLMAG(1:NDLOAD)              Increment in distributed load magnitudes
-!     MDLOAD                        Total number of distributed load or flux defined for the element
 !     PREDEF(1:2,1:NPREDF,1:NNODE)  Predefined fields.
 !     PREDEF(1,...)                 Value of predefined field
 !     PREDEF(2,...)                 Increment in predefined field
