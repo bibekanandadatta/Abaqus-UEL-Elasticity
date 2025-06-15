@@ -134,7 +134,160 @@
 ! **********************************************************************
 ! **********************************************************************
 
-      module user_element
+      module small_strain_material
+      
+      ! this module contains user-defined small strain materal model
+      ! as an example, only linear elastic material subroutine has been
+      ! added here. users can add more subroutines with different models.
+      
+      contains
+
+! **********************************************************************
+! **********************************************************************
+
+      subroutine umatElastic(kstep,kinc,time,dtime,nDim,analysis,
+     &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
+     &            jprops,njprops,strainVoigt,dstrainVoigt,
+     &            svars,nsvars,fieldVar,dfieldVar,npredf,
+     &            stress,Dmat)
+
+      ! This material point subroutine calculates constitutive response
+      ! of a linear elastic Hookean material and returns stress and the
+      ! elasticity tensor outputs. All the constitutive calculations are
+      ! initially done in 3D and later the corresponding matrices are
+      ! reshaped based on the type of analysis is being performed.
+      ! This material subroutine also stores the user-defined element
+      ! output in a global array for post=processing in Abaqus/Viewer.
+
+      use global_parameters
+      use linear_algebra
+      use lagrange_element
+      use solid_mechanics
+      use post_processing
+      use error_logging
+
+      implicit none
+
+      ! input arguments to the subroutine
+      character(len=2), intent(in)  :: analysis
+
+      integer, intent(in)   :: kstep, kinc, nDim, nstress
+      integer, intent(in)   :: nNode, jelem, intpt, nprops
+      integer, intent(in)   :: njprops, nsvars, npredf
+
+      real(wp), intent(in)  :: time(2), dtime
+      real(wp), intent(in)  :: coord_ip(nDim,1)
+      real(wp), intent(in)  :: props(nprops)
+      integer,  intent(in)  :: jprops(njprops)
+
+      real(wp), intent(in)  :: strainVoigt(nSymm,1)
+      real(wp), intent(in)  :: dstrainVoigt(nSymm,1)
+      real(wp), intent(in)  :: fieldVar(npredf)
+      real(wp), intent(in)  :: dfieldVar(npredf)
+
+      ! output from this subroutine
+      real(wp), intent(out)               :: stress(nStress,1)
+      real(wp), intent(out)               :: Dmat(nStress,nStress)
+      real(wp), intent(inout), optional   :: svars(nsvars)
+
+      ! variables local to the subroutine
+      real(wp)              :: E, nu, lambda, mu
+      real(wp)              :: Cmat(3,3,3,3)
+      real(wp)              :: VoigtMat(nSymm,nSymm)
+      real(wp)              :: Dmat2D(4,4)
+      real(wp)              :: stressVoigt(nSymm,1)
+      real(wp)              :: strain(nStress,1)
+
+      integer               :: i, j, k, l             ! loop counters
+      type(logger)          :: msg                    ! object for error logging
+
+
+      ! initialize matrial stiffness tensors
+      Cmat   = zero
+      Dmat   = zero
+      Dmat2D = zero
+
+
+      ! assign material properties to variables
+      E      = props(1)        ! Young's modulus
+      nu     = props(2)        ! Poisson's ratio
+
+      ! calculate Lame's parameters
+      lambda = E*nu/((one+nu)*(one-two*nu))
+      mu     = E/(two*(one+nu))
+
+      ! calculate the fourth-order elasticity tensor
+      do i = 1,3
+        do j = 1,3
+          do k = 1,3
+            do l = 1,3
+              Cmat(i,j,k,l) = lambda * ID3(i,j)*ID3(k,l)
+     &              + mu * ( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
+            end do
+          end do
+        end do
+      end do
+
+      ! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
+      call voigtMatrix(Cmat, VoigtMat)
+
+      ! calculate stress in Voigt vector form (6x1)
+      stressVoigt = matmul(VoigtMat, strainVoigt)
+
+      ! save solution-dependent state variables in SVARS
+      ! useful in mechanical problems with internal variables
+      ! such as plasticity, viscoelasticity, etc.
+      ! also perhpas in other time-dependent field problems
+      ! do other calculations as needed based on SVARS.
+
+      ! truncate tangent moduli matrix and stress vector (based on the analysis)
+      ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT TESTED YET
+      if ((analysis .eq. '3D') .or. (analysis .eq. 'PE')
+     &    .or. (analysis .eq. 'AX')) then
+        call voigtMatrixTruncate(VoigtMat, Dmat)
+        call voigtVectorTruncate(stressVoigt, stress)
+
+        ! truncate strain for post-processing
+        call voigtVectorTruncate(strainVoigt, strain)
+
+      else if (analysis .eq. 'PS') then
+        ! truncate the voigt matrix to a temporary Dmat (4x4)
+        call voigtMatrixTruncate(VoigtMat, Dmat2D)
+
+        ! modify the temporary Dmat for plane stress condition
+        do i = 1, 4
+          do j = 1, 4
+            Dmat2D(i,j) = Dmat2D(i,j)
+     &                  - ( Dmat2D(i,3)*Dmat2D(3,j) )/VoigtMat(3,3)
+          end do
+        end do
+
+        ! truncate Dmat2D further to dimension: nstress x nstress
+        call voigtMatrixTruncate(Dmat2D, Dmat)
+
+        ! truncate strain tensor for calculating stress and post-processing
+        call voigtVectorTruncate(strainVoigt, strain)
+
+        ! calculate Cauchy stress
+        stress = matmul(Dmat,strain)
+
+      end if
+
+
+      ! save the variables to be post-processed in globalPostVars
+      globalPostVars(jelem,intPt,1:nStress) = stress(1:nStress,1)
+      globalPostVars(jelem,intPt,nStress+1:2*nStress)
+     &                                      = strain(1:nStress,1)
+
+      end subroutine umatElastic
+
+      end module small_strain_material
+
+! **********************************************************************
+! **********************************************************************
+! **********************************************************************
+
+      module small_strain_element
 
       ! This module contains subroutines related to element formulation
       ! and constitutive calculation. Abaqus user subroutines can not
@@ -170,6 +323,7 @@
       use lagrange_element
       use gauss_quadrature
       use solid_mechanics
+      use small_strain_material
 
       implicit none
 
@@ -389,148 +543,12 @@
 
       end subroutine uelMech
 
+      end module small_strain_element
+
 ! **********************************************************************
-
-      subroutine umatElastic(kstep,kinc,time,dtime,nDim,analysis,
-     &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
-     &            jprops,njprops,strainVoigt,dstrainVoigt,
-     &            svars,nsvars,fieldVar,dfieldVar,npredf,
-     &            stress,Dmat)
-
-      ! This material point subroutine calculates constitutive response
-      ! of a linear elastic Hookean material and returns stress and the
-      ! elasticity tensor outputs. All the constitutive calculations are
-      ! initially done in 3D and later the corresponding matrices are
-      ! reshaped based on the type of analysis is being performed.
-      ! This material subroutine also stores the user-defined element
-      ! output in a global array for post=processing in Abaqus/Viewer.
-
-      use global_parameters
-      use linear_algebra
-      use lagrange_element
-      use solid_mechanics
-      use post_processing
-      use error_logging
-
-      implicit none
-
-      ! input arguments to the subroutine
-      character(len=2), intent(in)  :: analysis
-
-      integer, intent(in)   :: kstep, kinc, nDim, nstress
-      integer, intent(in)   :: nNode, jelem, intpt, nprops
-      integer, intent(in)   :: njprops, nsvars, npredf
-
-      real(wp), intent(in)  :: time(2), dtime
-      real(wp), intent(in)  :: coord_ip(nDim,1)
-      real(wp), intent(in)  :: props(nprops)
-      integer,  intent(in)  :: jprops(njprops)
-
-      real(wp), intent(in)  :: strainVoigt(nSymm,1)
-      real(wp), intent(in)  :: dstrainVoigt(nSymm,1)
-      real(wp), intent(in)  :: fieldVar(npredf)
-      real(wp), intent(in)  :: dfieldVar(npredf)
-
-      ! output from this subroutine
-      real(wp), intent(out)               :: stress(nStress,1)
-      real(wp), intent(out)               :: Dmat(nStress,nStress)
-      real(wp), intent(inout), optional   :: svars(nsvars)
-
-      ! variables local to the subroutine
-      real(wp)              :: E, nu, lambda, mu
-      real(wp)              :: Cmat(3,3,3,3)
-      real(wp)              :: VoigtMat(nSymm,nSymm)
-      real(wp)              :: Dmat2D(4,4)
-      real(wp)              :: stressVoigt(nSymm,1)
-      real(wp)              :: strain(nStress,1)
-
-      integer               :: i, j, k, l             ! loop counters
-      type(logger)          :: msg                    ! object for error logging
-
-
-      ! initialize matrial stiffness tensors
-      Cmat   = zero
-      Dmat   = zero
-      Dmat2D = zero
-
-
-      ! assign material properties to variables
-      E      = props(1)        ! Young's modulus
-      nu     = props(2)        ! Poisson's ratio
-
-      ! calculate Lame's parameters
-      lambda = E*nu/((one+nu)*(one-two*nu))
-      mu     = E/(two*(one+nu))
-
-      ! calculate the fourth-order elasticity tensor
-      do i = 1,3
-        do j = 1,3
-          do k = 1,3
-            do l = 1,3
-              Cmat(i,j,k,l) = lambda * ID3(i,j)*ID3(k,l)
-     &              + mu * ( ID3(i,k)*ID3(j,l) + ID3(i,l)*ID3(j,k) )
-            end do
-          end do
-        end do
-      end do
-
-      ! transforms the stiffness tensor 3x3x3x3 to a 6x6 matrix
-      call voigtMatrix(Cmat, VoigtMat)
-
-      ! calculate stress in Voigt vector form (6x1)
-      stressVoigt = matmul(VoigtMat, strainVoigt)
-
-      ! save solution-dependent state variables in SVARS
-      ! useful in mechanical problems with internal variables
-      ! such as plasticity, viscoelasticity, etc.
-      ! also perhpas in other time-dependent field problems
-      ! do other calculations as needed based on SVARS.
-
-      ! truncate tangent moduli matrix and stress vector (based on the analysis)
-      ! CAUTION: AXISYMMETRIC ELEMENTS ARE NOT TESTED YET
-      if ((analysis .eq. '3D') .or. (analysis .eq. 'PE')
-     &    .or. (analysis .eq. 'AX')) then
-        call voigtMatrixTruncate(VoigtMat, Dmat)
-        call voigtVectorTruncate(stressVoigt, stress)
-
-        ! truncate strain for post-processing
-        call voigtVectorTruncate(strainVoigt, strain)
-
-      else if (analysis .eq. 'PS') then
-        ! truncate the voigt matrix to a temporary Dmat (4x4)
-        call voigtMatrixTruncate(VoigtMat, Dmat2D)
-
-        ! modify the temporary Dmat for plane stress condition
-        do i = 1, 4
-          do j = 1, 4
-            Dmat2D(i,j) = Dmat2D(i,j)
-     &                  - ( Dmat2D(i,3)*Dmat2D(3,j) )/VoigtMat(3,3)
-          end do
-        end do
-
-        ! truncate Dmat2D further to dimension: nstress x nstress
-        call voigtMatrixTruncate(Dmat2D, Dmat)
-
-        ! truncate strain tensor for calculating stress and post-processing
-        call voigtVectorTruncate(strainVoigt, strain)
-
-        ! calculate Cauchy stress
-        stress = matmul(Dmat,strain)
-
-      end if
-
-
-      ! save the variables to be post-processed in globalPostVars
-      globalPostVars(jelem,intPt,1:nStress) = stress(1:nStress,1)
-      globalPostVars(jelem,intPt,nStress+1:2*nStress)
-     &                                      = strain(1:nStress,1)
-
-      end subroutine umatElastic
-
-      end module user_element
-
 ! **********************************************************************
 ! ****************** ABAQUS USER ELEMENT SUBROUTINE ********************
+! **********************************************************************
 ! **********************************************************************
 
       SUBROUTINE UEL(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
@@ -546,8 +564,8 @@
 
       use global_parameters
       use error_logging
-      use user_element
       use post_processing
+      use small_strain_element
 
       INCLUDE 'ABA_PARAM.INC'
 
@@ -687,7 +705,9 @@
       END SUBROUTINE UEL
 
 ! **********************************************************************
+! **********************************************************************
 ! ************** ABAQUS USER OUTPUT VARIABLES SUBROUTINE ***************
+! **********************************************************************
 ! **********************************************************************
 
       SUBROUTINE UVARM(UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,
