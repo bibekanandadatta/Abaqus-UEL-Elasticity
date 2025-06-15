@@ -31,7 +31,6 @@
 !
 !     CAUTION: AXISYMMETRIC ELEMENTS ARE NOT TESTED YET
 ! **********************************************************************
-!
 !          VOIGT NOTATION CONVENTION FOR STRESS/ STRAIN TENSORS
 !
 !       In this subroutine we adopted the following convention for
@@ -40,29 +39,17 @@
 !
 !         sigma11, sigma22, sigma33, sigma23, sigma13, sigma12
 !       strain11, strain22, strain33, strain23, strain13, strain12
-!
 ! **********************************************************************
-!
-!                       LIST OF MATERIAL PROPERTIES
-!
-!     props(1)   = E                Young's modulus
-!     props(2)   = nu               Poisson ratio
-!
-! **********************************************************************
-!
 !                       LIST OF ELEMENT PROPERTIES
 !
 !     jprops(1)   = nInt            no of integration points in element
 !     jprops(2)   = nPostVars       no of local (int pt) post-processing variables
-!
 ! **********************************************************************
-!
 !                        POST-PROCESSED VARIABLES
 !                     (follows the convention above)
 !
 !     uvar(1:nStress)                 Cauchy stress tensor components
 !     uvar(nStress+1:2*nStress)       Small train tensor components
-!
 ! **********************************************************************
 !
 !               VARIABLES TO BE UPDATED WITHIN THE SUBROUTINE
@@ -118,8 +105,10 @@
 !     NPREDF                        Number of predefined fields
 !     LFLAGS                        Load type control variable
 !     MLVARX                        Dimension variable
+!     MDLOAD                        Total number of distributed loads and/or fluxes defined on this element.
 !     PERIOD                        Time period of the current step
 !
+! **********************************************************************
 ! **********************************************************************
 
       ! make sure to have the correct directory
@@ -151,13 +140,20 @@
      &            svars,nsvars,fieldVar,dfieldVar,npredf,
      &            stress,Dmat)
 
-      ! This material point subroutine calculates constitutive response
-      ! of a linear elastic Hookean material and returns stress and the
-      ! elasticity tensor outputs. All the constitutive calculations are
-      ! initially done in 3D and later the corresponding matrices are
-      ! reshaped based on the type of analysis is being performed.
-      ! This material subroutine also stores the user-defined element
-      ! output in a global array for post=processing in Abaqus/Viewer.
+! **********************************************************************
+!     This material point subroutine calculates constitutive response
+!     of a linear elastic Hookean material and returns stress and the
+!     elasticity tensor outputs. All the constitutive calculations are
+!     initially done in 3D and later the corresponding matrices are
+!     reshaped based on the type of analysis is being performed.
+!     This material subroutine also stores the user-defined element
+!     output in a global array for post=processing in Abaqus/Viewer.
+! **********************************************************************
+!                   LIST OF MATERIAL PROPERTIES
+!
+!         props(1)   = E                Young's modulus
+!         props(2)   = nu               Poisson ratio
+! **********************************************************************
 
       use global_parameters
       use linear_algebra
