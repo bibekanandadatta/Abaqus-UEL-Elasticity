@@ -104,8 +104,8 @@
 !     PREDEF(1:2,2:NPREDF,k)        Value of user defined field/field increment at kth node
 !     NPREDF                        Number of predefined fields
 !     LFLAGS                        Load type control variable
-!     MLVARX                        Dimension variable
-!     MDLOAD                        Total number of distributed loads and/or fluxes defined on this element.
+!     MLVARX                        Dimension variabl
+!     MDLOAD                        Total number of distributed loads and/or fluxes defined on this element
 !     PERIOD                        Time period of the current step
 !
 ! **********************************************************************
@@ -124,17 +124,16 @@
 ! **********************************************************************
 
       module small_strain_material
-      
-      ! this module contains user-defined small strain materal model
-      ! as an example, only linear elastic material subroutine has been
-      ! added here. users can add more subroutines with different models.
-      
+
+! **********************************************************************
+!     this module contains user-defined small strain materal model
+!     as an example, only linear elastic material subroutine has been
+!     added here. users can add more subroutines with different models.
+! **********************************************************************
+
       contains
 
-! **********************************************************************
-! **********************************************************************
-
-      subroutine umatElastic(kstep,kinc,time,dtime,nDim,analysis,
+      subroutine mat_elastic(kstep,kinc,time,dtime,nDim,analysis,
      &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
      &            jprops,njprops,strainVoigt,dstrainVoigt,
      &            svars,nsvars,fieldVar,dfieldVar,npredf,
@@ -275,7 +274,7 @@
       globalPostVars(jelem,intPt,nStress+1:2*nStress)
      &                                      = strain(1:nStress,1)
 
-      end subroutine umatElastic
+      end subroutine mat_elastic
 
       end module small_strain_material
 
@@ -285,33 +284,36 @@
 
       module small_strain_element
 
-      ! This module contains subroutines related to element formulation
-      ! and constitutive calculation. Abaqus user subroutines can not
-      ! be included in a module. Instead we extended the list of arguments
-      ! of the Abaqus UEL subroutine and wrote another subroutine of
-      ! similar kind which is included in the user_element module.
-      ! Compilers can perform additional checks on the arguments when
-      ! any modularized subroutines are called. The first subroutine is
-      ! called by UEL subroutine of Abaqus with an extended set of
-      ! input arguments. The first subroutine calls other subroutines.
-
+! **********************************************************************
+!     This module contains subroutines related to element formulation
+!     and constitutive calculation. Abaqus user subroutines can not
+!     be included in a module. Instead we extended the list of arguments
+!     of the Abaqus UEL subroutine and wrote another subroutine of
+!     similar kind which is included in the small_strain_element module.
+!     Compilers can perform additional checks on the arguments when
+!     any modularized subroutines are called. The first subroutine is
+!     called by UEL subroutine of Abaqus with an extended set of
+!     input arguments. The first subroutine calls other subroutines.
+! **********************************************************************
       contains
 
-      subroutine uelMech(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
+      subroutine elem_mech(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
      & PROPS,NPROPS,COORDS,MCRD,NNODE,Uall,DUall,Vel,Accn,JTYPE,TIME,
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD,
      & NDIM,ANALYSIS,NSTRESS,NINT)
 
-      ! This subroutine contains the standard displacement-based
-      ! element formulation for static/ quasi-static small deformation
-      ! of solids. It calls the material model subroutine at each
-      ! integration point to obtain the stress vector and stiffness
-      ! matrix used in the formulation. Currently available elements
-      ! are 2D and 3D continuum elements of different shapes (TRI,
-      ! QUAD, TET, HEX) and polynomial order (linear and quadratic)
-      ! with full and reduced integration. No specialzed numerical
-      ! technique was employed to alleviate volumetric locking.
+! **********************************************************************
+!     This subroutine contains the standard displacement-based
+!     element formulation for static/ quasi-static small deformation
+!     of solids. It calls the material model subroutine at each
+!     integration point to obtain the stress vector and stiffness
+!     matrix used in the formulation. Currently available elements
+!     are 2D and 3D continuum elements of different shapes (TRI,
+!     QUAD, TET, HEX) and polynomial order (linear and quadratic)
+!     with full and reduced integration. No specialzed numerical
+!     technique was employed to alleviate volumetric locking.
+! **********************************************************************
 
       use global_parameters
       use error_logging
@@ -423,7 +425,7 @@
         detJ  = det(dxdxi)                  ! calculate jacobian determinant
 
         if (detJ .lt. zero) then
-          call  msg%ferror( flag=warn, src='uelMech',
+          call  msg%ferror( flag=warn, src='elem_mech',
      &          msg='Negative element jacobian.', ivec=[jelem, intpt])
         end if
 
@@ -464,7 +466,7 @@
             Ba(4,1:nDim)  = [dNdx(i,2), dNdx(i,1)]
 
           else
-            call msg%ferror(flag=error, src='uelMech',
+            call msg%ferror(flag=error, src='elem_mech',
      &           msg='Wrong analysis.', ch=analysis)
             call xit
           end if
@@ -499,7 +501,7 @@
     !     end do
 
         ! call material point subroutine (UMAT) for specific material
-        call umatElastic(kstep,kinc,time,dtime,nDim,analysis,
+        call mat_elastic(kstep,kinc,time,dtime,nDim,analysis,
      &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
      &            jprops,njprops,strainVoigt,dstrainVoigt,
      &            svars,nsvars,fieldVar,dfieldVar,npredf,
@@ -510,12 +512,12 @@
 
         !!!!!!!!!!!!!!! TANGENT MATRIX AND RESIDUAL VECTOR !!!!!!!!!!!!!
 
-        if ( (analysis .eq. '3D') .or. (analysis .eq. 'PE') 
+        if ( (analysis .eq. '3D') .or. (analysis .eq. 'PE')
      &            .or. (analysis .eq. 'PS') ) then
-          Kuu = Kuu + w(intPt) * detJ * 
+          Kuu = Kuu + w(intPt) * detJ *
      &          matmul( transpose(Bmat), matmul(Dmat,Bmat) )
           Ru  = Ru - w(intPt) * detJ * matmul(transpose(Bmat),stress)
-  
+
         else if (analysis .eq. 'AX') then
           Kuu = Kuu + w(intPt) * detJ * Ar *
      &          matmul( transpose(Bmat), matmul(Dmat,Bmat) )
@@ -536,8 +538,9 @@
       AMATRX(1:NDOFEL,1:NDOFEL) = Kuu(1:nDOFEL,1:nDOFEL)
       RHS(1:NDOFEL,1)           = Ru(1:nDOFEL,1)
 
+      end subroutine elem_mech
 
-      end subroutine uelMech
+! **********************************************************************
 
       end module small_strain_element
 
@@ -552,11 +555,13 @@
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD)
 
-      ! This subroutine is called by Abaqus with above arguments
-      ! for each user elements defined in an Abaqus model. Users are
-      ! responsible for programming the element tangent/ stiffness
-      ! matrix and residual vectors which will be then assembled and
-      ! solved by Abaqus after applying the boundary conditions.
+! **********************************************************************
+!     This subroutine is called by Abaqus with above arguments
+!     for each user elements defined in an Abaqus model. Users are
+!     responsible for programming the element tangent/ stiffness
+!     matrix and residual vectors which will be then assembled and
+!     solved by Abaqus after applying the boundary conditions.
+! **********************************************************************
 
       use global_parameters
       use error_logging
@@ -692,7 +697,7 @@
       end if
 
        ! call the element subroutine with extended input arguments
-       call uelMech(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
+       call elem_mech(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
      & PROPS,NPROPS,COORDS,MCRD,NNODE,Uall,DUall,Vel,Accn,JTYPE,TIME,
      & DTIME,KSTEP,KINC,JELEM,PARAMS,NDLOAD,JDLTYP,ADLMAG,PREDEF,
      & NPREDF,LFLAGS,MLVARX,DDLMAG,MDLOAD,PNEWDT,JPROPS,NJPROPS,PERIOD,
@@ -710,13 +715,15 @@
      & NUVARM,NOEL,NPT,LAYER,KSPT,KSTEP,KINC,NDI,NSHR,COORD,
      & JMAC,JMATYP,MATLAYO,LACCFLA)
 
-      ! This subroutine is called by Abaqus at each material point (int pt)
-      ! to obtain the user defined output variables for standard Abaqus
-      ! elements. We used an additional layer of standard Abaqus elements
-      ! with same topology (same number of nodes and int pts) on top of
-      ! the user elements with an offset in the numbering between the user
-      ! elements and standard elements. This number is defined in the
-      ! post_processing module and should match with Abaqus input file.
+! **********************************************************************
+!     This subroutine is called by Abaqus at each material point (int pt)
+!     to obtain the user defined output variables for standard Abaqus
+!     elements. We used an additional layer of standard Abaqus elements
+!     with same topology (same number of nodes and int pts) on top of
+!     the user elements with an offset in the numbering between the user
+!     elements and standard elements. This number is defined in the
+!     post_processing module and should match with Abaqus input file.
+! **********************************************************************
 
       use global_parameters
       use post_processing
