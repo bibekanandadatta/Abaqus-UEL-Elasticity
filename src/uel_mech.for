@@ -194,7 +194,6 @@
       real(wp)              :: strain(nStress,1)
 
       integer               :: i, j, k, l             ! loop counters
-      type(logger)          :: msg                    ! object for error logging
 
 
       ! initialize matrial stiffness tensors
@@ -382,7 +381,6 @@
 
       integer               :: i, j, k, intPt       ! loop counter variables
       type(element)         :: solidSmallStrain     ! element type
-      type(logger)          :: msg                  ! logger
 
       ! element stiffness matrix and residual vector
       real(wp)              :: Kuu(nDOFEL,nDOFEL), Ru(nDOFEL,1)
@@ -545,9 +543,7 @@
       end module small_strain_element
 
 ! **********************************************************************
-! **********************************************************************
 ! ****************** ABAQUS USER ELEMENT SUBROUTINE ********************
-! **********************************************************************
 ! **********************************************************************
 
       SUBROUTINE UEL(RHS,AMATRX,SVARS,ENERGY,NDOFEL,NRHS,NSVARS,
@@ -595,26 +591,10 @@
       logical               :: nlgeom
       integer               :: nInt, nPostVars
 
-      integer               :: lenJobName,lenOutDir
-      character(len=256)    :: outDir
-      character(len=256)    :: jobName
-      character(len=512)    :: errFile, dbgFile
-      type(logger)          :: msg
-
       ! initialize the output variables to be defined for Abaqus subroutine
       energy        = zero
       amatrx        = zero
       rhs(:,nrhs)   = zero
-
-      ! Open an error and debug file for the current job.
-      ! See Abaqus documentation for Fortran unit number.
-      ! File unit numbers are defined in the error_logging module.
-
-      call getJobName(jobName,lenJobName)
-      call getOutDir(outDir,lenOutDir)
-      errFile = trim(outDir)//'\aaERR_'//trim(jobName)//'.dat'
-      dbgFile = trim(outDir)//'\aaDBG_'//trim(jobName)//'.dat'
-      call msg%fopen( errfile=errFile, dbgfile=dbgFile )
 
       ! change the LFLAGS criteria as needed (check Abaqus UEL manual)
       if( (lflags(1)  .eq.  1) .or. (lflags(1)  .eq.  2) ) then
@@ -705,13 +685,87 @@
 
       END SUBROUTINE UEL
 
+
 ! **********************************************************************
+! ************** ABAQUS USER DATABASE FILE I/O SUBROUTINE **************
+! **********************************************************************
+
+      SUBROUTINE UEXTERNALDB(LOP,LRESTART,TIME,DTIME,KSTEP,KINC)
+
+! **********************************************************************
+!     This Abaqus/Standard user subroutine file is used for external
+!     file i/o operation. User can open, close, write to external files
+!     at different stages of the simulation through this subroutine
+! **********************************************************************
+
+      use global_parameters
+      use error_logging
+
+      DIMENSION                TIME(2)
+
+      integer, intent(in)   :: lop, lrestart, kstep, kinc
+      real(wp), intent(in)  :: time, dtime
+
+      real(wp)              :: currentTime, totalTime
+      integer               :: lenJobName,lenOutDir
+      character(len=256)    :: jobName, outDir
+      character(len=512)    :: errFile
+
+
+      ! possible LOP argument parameter values
+      integer, parameter    :: startAnalysis    = 0
+      integer, parameter    :: startIncrement   = 1
+      integer, parameter    :: endIncrement     = 2
+      integer, parameter    :: endAnalysis      = 3
+      integer, parameter    :: restartAnalysis  = 4
+      integer, parameter    :: startStep        = 5
+      integer, parameter    :: endStep          = 6
+
+      ! possible LRESTART argument parameter values
+      integer, parameter    :: restartIgnore    = 0
+      integer, parameter    :: restartWrite     = 1
+      integer, parameter    :: restartOverwrite = 2
+
+
+      currentTime           = time(1)
+      totalTime             = time(2)
+
+      if (LOP .eq. startAnalysis) then
+
+        call getJobName(jobName, lenJobName)
+        call getOutDir(outDir, lenOutDir)
+        errFile = trim(outDir)//'\aaERR_'//trim(jobName)//'.dat'
+        call msg%fopen(errfile=errFile)
+
+      else if (LOP .eq. startIncrement) then
+        return
+
+      else if (LOP .eq. endIncrement) then
+        return
+
+      else if (LOP .eq. endAnalysis) then
+        call msg%finfo('Abaqus job completed successfully.')
+
+      else if (LOP .eq. restartAnalysis) then
+        return
+
+      else if (LOP .eq. startStep) then
+        return
+
+      else if (LOP .eq. endStep) then
+        return
+
+      end if
+
+      RETURN
+
+      END SUBROUTINE UEXTERNALDB
+
 ! **********************************************************************
 ! ************** ABAQUS USER OUTPUT VARIABLES SUBROUTINE ***************
 ! **********************************************************************
-! **********************************************************************
 
-      SUBROUTINE UVARM(UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,
+       SUBROUTINE UVARM(UVAR,DIRECT,T,TIME,DTIME,CMNAME,ORNAME,
      & NUVARM,NOEL,NPT,LAYER,KSPT,KSTEP,KINC,NDI,NSHR,COORD,
      & JMAC,JMATYP,MATLAYO,LACCFLA)
 
@@ -728,8 +782,6 @@
       use global_parameters
       use post_processing
 
-      INCLUDE 'ABA_PARAM.INC'
-
       CHARACTER*80 CMNAME,ORNAME
       CHARACTER*3 FLGRAY(15)
       DIMENSION UVAR(NUVARM),DIRECT(3,3),T(3,3),TIME(2)
@@ -743,6 +795,8 @@
 
       ! assign the stored global variables to the UVAR for Abaqus to process
       uvar(1:nuvarm)  = globalPostVars(noel-elemOffset,npt,1:nuvarm)
+
+      RETURN
 
       END SUBROUTINE UVARM
 
