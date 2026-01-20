@@ -498,6 +498,7 @@
     !  &                    reshape( dfieldNode(k,1:nNode), [nNode] ) )
     !     end do
 
+
         ! call material point subroutine (UMAT) for specific material
         call mat_elastic(kstep,kinc,time,dtime,nDim,analysis,
      &            nstress,nNode,jelem,intpt,coord_ip,props,nprops,
@@ -656,8 +657,6 @@
         call msg%finfo('---------------------------------------')
         call msg%finfo('------- Abaqus SMALL STRAIN UEL -------')
         call msg%finfo('--------- SOURCE: uel_mech.for --------')
-        call msg%finfo('---------------------------------------')
-        call msg%finfo('--- Abaqus Job: ', ch=trim(jobName))
         call msg%finfo('---------------------------------------')
         call msg%finfo('------- PROCEDURE       = ', ch=abqProcedure)
         call msg%finfo('------- ANALYSIS TYPE   = ', ch=analysis)
