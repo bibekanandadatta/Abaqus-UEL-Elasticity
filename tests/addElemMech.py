@@ -36,7 +36,7 @@ elif jtype == 3:
                   '*Element, type=U3'
 elif jtype == 4:
     oldElemStr  = '*Element, type=C3D20'
-    newElemStr  = '*User Element,Type=U4,Nodes=8,Coordinates=3,Properties=2,Iproperties=2\n'\
+    newElemStr  = '*User Element,Type=U4,Nodes=20,Coordinates=3,Properties=2,Iproperties=2\n'\
                   '1,2,3\n'\
                   '*Element, type=U4'
 elif jtype == 5:
@@ -46,7 +46,7 @@ elif jtype == 5:
                   '*Element, type=U5'
 elif jtype == 6:
     oldElemStr  = '*Element, type=CPE6'
-    newElemStr  = '*User Element,Type=U6,Nodes=3,Coordinates=2,Properties=2,Iproperties=2\n'\
+    newElemStr  = '*User Element,Type=U6,Nodes=6,Coordinates=2,Properties=2,Iproperties=2\n'\
                   '1,2\n'\
                   '*Element, type=U6'
 elif jtype == 7:
@@ -56,7 +56,7 @@ elif jtype == 7:
                   '*Element, type=U7'
 elif jtype == 8:
     oldElemStr  = '*Element, type=CPE8'
-    newElemStr  = '*User Element,Type=U8,Nodes=4,Coordinates=2,Properties=2,Iproperties=2\n'\
+    newElemStr  = '*User Element,Type=U8,Nodes=8,Coordinates=2,Properties=2,Iproperties=2\n'\
                   '1,2\n'\
                   '*Element, type=U8'
 else:

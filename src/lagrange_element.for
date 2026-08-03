@@ -12,6 +12,7 @@
       module lagrange_element
 
       use global_parameters
+      use error_logging
 
       type, public  :: element
         integer                     :: nDim
@@ -27,20 +28,11 @@
       interface
 
         module subroutine calcInterpFunc(elem,xiCoord,Nxi,dNdxi)
-          use global_parameters, only: wp
           implicit none
           type(element), intent(in)   :: elem
           real(wp), intent(in)        :: xiCoord(:)
           real(wp), intent(out)       :: Nxi(:), dNdxi(:,:)
         end subroutine calcInterpFunc
-
-        module subroutine faceNodes(elem,face,nFaceNodes,list)
-          implicit none
-          type(element), intent(in)   :: elem
-          integer, intent(in)         :: face
-          integer, intent(out)        :: nFaceNodes
-          integer, intent(out)        :: list(*)
-        end subroutine faceNodes
 
       end interface
 
@@ -90,9 +82,6 @@
       ! Nxi(i)          = shape function of node i at the intpt.
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
-      use global_parameters
-      use error_logging
-
       implicit none
 
       integer, intent(in)         :: nNode
@@ -140,9 +129,6 @@
       ! Nxi(i)          = shape function of node i at the intpt.
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
 
-      use global_parameters
-      use error_logging
-
       implicit none
 
       integer, intent(in)         :: nNode
@@ -169,17 +155,17 @@
 
       if (nNode .eq. 3) then        ! 3-noded tri3 linear element
         ! shape functions
-        Nxi(1) = xi
-        Nxi(2) = eta
-        Nxi(3) = one - xi - eta
+        Nxi(1) = one - xi - eta
+        Nxi(2) = xi
+        Nxi(3) = eta
 
         ! the first derivatives of the shape functions dN/dxi (3x2)
-        dNdxi(1, 1) = one
-        dNdxi(1, 2) = zero
-        dNdxi(2, 1) = zero
-        dNdxi(2, 2) = one
-        dNdxi(3, 1) = -one
-        dNdxi(3, 2) = -one
+        dNdxi(1, 1) = -one
+        dNdxi(1, 2) = -one
+        dNdxi(2, 1) = one
+        dNdxi(2, 2) = zero
+        dNdxi(3, 1) = zero
+        dNdxi(3, 2) = one
 
       !              A eta (=xi_2)
       !              |
@@ -300,9 +286,6 @@
 
       ! Nxi(i)          = shape function of node i at the intpt.
       ! dNdxi(i,j)      = derivative wrt j direction of shape fn of node i
-
-      use global_parameters
-      use error_logging
 
       implicit none
 

@@ -16,19 +16,18 @@
 
       module surface_integration
 
-      private   :: gaussQuadrtrSurf2, gaussQuadrtrSurf3
-      private   :: computeSurf2, computeSurf3
+      use global_parameters, only: wp, zero
+      use lagrange_element, only: element
+      use error_logging, only: msg, error
 
-      public    :: getGaussQuadrtrSurf
-      public    :: computeSurfArea
+      implicit none
+      private
+
+      public    :: getSurfGaussQuadrtr, computeSurfArea, faceNodes
 
       contains
 
       subroutine getSurfGaussQuadrtr(face,w,xiSurf)
-
-        use global_parameters,  only: wp
-
-        implicit none
 
         integer, intent(in)     :: face
         real(wp), intent(out)   :: w(:), xiSurf(:,:)
@@ -36,17 +35,36 @@
         real(wp)                :: eta( size(xiSurf, dim=1) )
         real(wp)                :: zeta( size(xiSurf, dim=1) )
 
+        w       = zero
+        xiSurf  = zero
 
         if (size(xiSurf, dim=2) .eq. 2) then
+          if ((size(xiSurf,dim=1) .ne. 2) .or.
+     &        (size(w) .ne. 2)) then
+            call msg%ferror(flag=error,src='getSurfGaussQuadrtr',
+     &        msg='QUAD4 surface quadrature requires w(2), xi(2,2).')
+            return
+          end if
           call gaussQuadrtrSurf2(face,w,xi,eta)
           xiSurf(:,1)   = xi
           xiSurf(:,2)   = eta
 
         else if (size(xiSurf, dim=2) .eq. 3) then
+          if ((size(xiSurf,dim=1) .ne. 4) .or.
+     &        (size(w) .ne. 4)) then
+            call msg%ferror(flag=error,src='getSurfGaussQuadrtr',
+     &        msg='HEX8 surface quadrature requires w(4), xi(4,3).')
+            return
+          end if
           call gaussQuadrtrSurf3(face,w,xi,eta,zeta)
           xiSurf(:,1)   = xi
           xiSurf(:,2)   = eta
           xiSurf(:,3)   = zeta
+        else
+          call msg%ferror(flag=error,src='getSurfGaussQuadrtr',
+     &      msg='Natural-coordinate dimension must be 2 or 3.',
+     &      ia=size(xiSurf,dim=2))
+          return
         end if
 
       end subroutine getSurfGaussQuadrtr
@@ -55,21 +73,38 @@
 
       subroutine computeSurfArea(xiIntS,face,coords,NxiS,dA)
 
-
-      use global_parameters, only: wp
-
-      implicit none
-
       integer, intent(in)   :: face
       real(wp), intent(in)  :: xiIntS(:), coords(:,:)
       real(wp), intent(out) :: NxiS(:), dA
 
+      NxiS = zero
+      dA    = zero
+
       if (size(xiIntS) .eq. 2) then
+        if ((size(coords,1) .ne. 2) .or.
+     &      (size(coords,2) .ne. 4) .or.
+     &      (size(NxiS) .ne. 4)) then
+          call msg%ferror(flag=error,src='computeSurfArea',
+     &      msg='QUAD4 requires coords(2,4) and NxiS(4).')
+          return
+        end if
         call computeSurf2(xiIntS(1), xiIntS(2), face, coords, NxiS, dA)
 
       else if (size(xiIntS) .eq. 3) then
+        if ((size(coords,1) .ne. 3) .or.
+     &      (size(coords,2) .ne. 8) .or.
+     &      (size(NxiS) .ne. 8)) then
+          call msg%ferror(flag=error,src='computeSurfArea',
+     &      msg='HEX8 requires coords(3,8) and NxiS(8).')
+          return
+        end if
         call computeSurf3(xiIntS(1), xiIntS(2), xiIntS(3),
      &                    face, coords, NxiS, dA)
+      else
+        call msg%ferror(flag=error,src='computeSurfArea',
+     &    msg='Natural-coordinate dimension must be 2 or 3.',
+     &    ia=size(xiIntS))
+        return
       end if
 
 
@@ -94,6 +129,16 @@
 
       integer, intent(in)   :: face
       real(wp), intent(out) :: xLocal(2), yLocal(2), w(2)
+
+      xLocal = zero
+      yLocal = zero
+      w      = zero
+
+      if ((face .lt. 1) .or. (face .gt. 4)) then
+        call msg%ferror(flag=error,src='gaussQuadrtrSurf2',
+     &       msg='Invalid face ID', ia=face)
+        return
+      end if
 
       ! Gauss weights
       !
@@ -121,9 +166,6 @@
         yLocal(1) = sqrt(one/three)
         xLocal(2) = -one
         yLocal(2) = -sqrt(one/three)
-      else
-        call msg%ferror(flag=error,src='gaussQuadrtrSurf2',
-     &         msg='Invalid face ID', ia=face)
       endif
 
       end subroutine gaussQuadrtrSurf2
@@ -148,6 +190,17 @@
 
       integer, intent(in)   :: face
       real(wp), intent(out) :: xLocal(4), yLocal(4), zLocal(4), w(4)
+
+      xLocal = zero
+      yLocal = zero
+      zLocal = zero
+      w      = zero
+
+      if ((face .lt. 1) .or. (face .gt. 6)) then
+        call msg%ferror(flag=error,src='gaussQuadrtrSurf3',
+     &       msg='Invalid face ID', ia=face)
+        return
+      end if
 
       ! Gauss weights
       w(1) = one
@@ -234,10 +287,6 @@
         xLocal(4) = -one
         yLocal(4) = -sqrt(one/three)
         zLocal(4) = sqrt(one/three)
-      else
-        call msg%ferror(flag=error,src='gaussQuadrtrSurf3',
-     &         msg='Invalid face ID', ia=face)
-          call xit
       endif
 
       end subroutine gaussQuadrtrSurf3
@@ -261,7 +310,16 @@
       real(wp), intent(in)    :: xLocal, yLocal, coords(2,4)
       real(wp), intent(out)   :: ds,sh(4)
       real(wp)                :: dshxi(4,2),dXdXi,dXdEta,dYdXi
-      real(wp)                :: dYdEta, normal(2,1)
+      real(wp)                :: dYdEta
+
+      sh = zero
+      ds = zero
+
+      if ((face .lt. 1) .or. (face .gt. 4)) then
+        call msg%ferror(flag=error,src='computeSurf2',
+     &       msg='Invalid face ID', ia=face)
+        return
+      end if
 
       sh(1) = fourth*(one - xLocal)*(one - yLocal)
       sh(2) = fourth*(one + xLocal)*(one - yLocal)
@@ -293,28 +351,6 @@
           ds = sqrt(dXdEta*dXdEta + dYdEta*dYdEta)
       elseif((face .eq. 1) .or. (face .eq. 3)) then
           ds = sqrt(dXdXi*dXdXi + dYdXi*dYdXi)
-      else
-          write(*,*) 'never should get here'
-          call xit
-      endif
-
-
-      ! Surface normal, outward pointing in this case. Useful for
-      ! ``follower'' type loads. The normal is referential or spatial
-      ! depending on which coords were supplied to this subroutine
-      ! (NOT fully tested)
-
-      if((face .eq. 2) .or. (face .eq. 4)) then
-        normal(1,1) = dYdEta/sqrt(dXdEta*dXdEta + dYdEta*dYdEta)
-        normal(2,1) = -dXdEta/sqrt(dXdEta*dXdEta + dYdEta*dYdEta)
-        if(face .eq. 4) normal = -normal
-      elseif((face .eq. 1) .or. (face .eq. 3)) then
-        normal(1,1) = dYdXi/sqrt(dXdXi*dXdXi + dYdXi*dYdXi)
-        normal(2,1) = -dXdXi/sqrt(dXdXi*dXdXi + dYdXi*dYdXi)
-        if(face .eq. 3) normal = -normal
-      else
-       call msg%ferror(flag=error,src='computeSurf2',
-     &         msg='Invalid face ID', ia=face)
       endif
 
       return
@@ -338,11 +374,19 @@
 
       real(wp), intent(in)  :: xLocal, yLocal ,zLocal, coords(3,8)
       real(wp), intent(out) :: dA, sh(8)
-      real(wp)              :: dsh(8,3), dshxi(8,3), mapJ(3,3), mag
+      real(wp)              :: dshxi(8,3)
       real(wp)              :: dXdXi,dXdEta, dXdZeta, dYdXi, dYdEta
       real(wp)              :: dYdZeta, dZdXi, dZdZeta, dZdEta
-      real(wp)              :: normal(3,1)
-      integer               :: stat, i, j, k
+      integer               :: k
+
+      sh = zero
+      dA = zero
+
+      if ((face .lt. 1) .or. (face .gt. 6)) then
+        call msg%ferror(flag=error,src='computeSurf3',
+     &       msg='Invalid face ID', ia=face)
+        return
+      end if
 
       ! The shape functions
       !
@@ -430,47 +474,7 @@
      &        + (dXdEta*dZdZeta - dXdZeta*dZdEta)**two
      &        + (dXdEta*dYdZeta - dXdZeta*dYdEta)**two
      &        )
-         else
-            write(*,*) 'never should get here'
-            call xit
       endif
-
-
-      ! Surface normal, outward pointing in this case. Useful for
-      ! ``follower'' type loads. The normal is referential or spatial
-      ! depending on which coords were supplied to this subroutine
-      ! (NOT fully tested)
-
-      if((face .eq. 1) .or. (face .eq. 2)) then
-        ! zeta = constant on this face
-        normal(1,1) = dYdXi*dZdEta - dYdEta*dZdXi
-        normal(2,1) = dXdXi*dZdEta - dXdEta*dZdXi
-        normal(3,1) = dXdXi*dYdEta - dXdEta*dYdXi
-
-        if(face .eq. 1) normal = -normal
-
-      elseif((face .eq. 3) .or. (face .eq. 5)) then
-        ! eta = constant on this face
-        normal(1,1) = dYdXi*dZdZeta - dYdZeta*dZdXi
-        normal(2,1) = dXdXi*dZdZeta - dXdZeta*dZdXi
-        normal(3,1) = dXdXi*dYdZeta - dXdZeta*dYdXi
-
-        if(face .eq. 5) normal = -normal
-      elseif((face .eq. 4) .or. (face .eq. 6)) then
-        ! xi = constant on this face
-        normal(1,1) = dYdEta*dZdZeta - dYdZeta*dZdEta
-        normal(2,1) = dXdEta*dZdZeta - dXdZeta*dZdEta
-        normal(3,1) = dXdEta*dYdZeta - dXdZeta*dYdEta
-        if(face .eq. 6) normal = -normal
-      else
-        call msg%ferror(flag=error,src='computeSurf3',
-     &         msg='Invalid face ID', ia=face)
-      endif
-
-      mag = sqrt(normal(1,1)**two+normal(2,1)**two+normal(3,1)**two)
-      normal(1,1) = normal(1,1)/mag
-      normal(2,1) = normal(2,1)/mag
-      normal(3,1) = normal(3,1)/mag
 
       end subroutine computeSurf3
 
@@ -478,19 +482,18 @@
 ************************************************************************
 
       subroutine faceNodes(elem,face,nFaceNodes,list)
-      ! this subroutine RETURNs the list of nodes on an
-      ! element face for standard 2D and 3D Lagrangian elements
-      ! this subroutine is useful for applying traction-type BC
-
-      use lagrange_element
-
-      implicit none
+      ! Returns the nodes on a face of a standard 2D or 3D element.
 
       type(element), intent(in)   :: elem
       integer, intent(in)         :: face
       integer, intent(out)        :: nFaceNodes
-      integer, intent(out)        :: list(*)
+      integer, intent(out)        :: list(:)
       integer                     :: list3(3), list4(4)
+      integer                     :: nFaces
+
+      nFaceNodes = 0
+      nFaces     = 0
+      list       = 0
 
       if (elem%nDim .eq. 2) then
         list3(1:3) = [2,3,1]
@@ -498,48 +501,102 @@
 
         if (elem%nNode .eq. 3) then
           nFaceNodes = 2
-          list(1) = face
-          list(2) = list3(face)
+          nFaces     = 3
         else if (elem%nNode .eq. 4) then
           nFaceNodes = 2
-          list(1) = face
-          list(2) = list4(face)
+          nFaces     = 4
         else if (elem%nNode .eq. 6) then
           nFaceNodes = 3
-          list(1) = face
-          list(2) = list3(face)
-          list(3) = face+3
+          nFaces     = 3
         else if (elem%nNode .eq. 8) then
-          nFaceNodes = 4
-          list(1) = face
-          list(2) = list4(face)
-          list(3) = face+4
+          nFaceNodes = 3
+          nFaces     = 4
+        else
+          call msg%ferror(flag=error,src='faceNodes',
+     &      msg='Unsupported 2D element node count.',ia=elem%nNode)
+          return
         end if
+
+        if ((face .lt. 1) .or. (face .gt. nFaces)) then
+          call msg%ferror(flag=error,src='faceNodes',
+     &      msg='Invalid face ID.',ia=face)
+          nFaceNodes = 0
+          return
+        end if
+
+        if (size(list) .lt. nFaceNodes) then
+          call msg%ferror(flag=error,src='faceNodes',
+     &      msg='Output node list is too small.',ivec=[size(list),
+     &      nFaceNodes])
+          nFaceNodes = 0
+          return
+        end if
+
+        list(1) = face
+        if ((elem%nNode .eq. 3) .or. (elem%nNode .eq. 6)) then
+          list(2) = list3(face)
+        else
+          list(2) = list4(face)
+        end if
+        if (elem%nNode .eq. 6) list(3) = face+3
+        if (elem%nNode .eq. 8) list(3) = face+4
 
       else if (elem%nDim .eq. 3) then
 
         if (elem%nNode .eq. 4) then
           nFaceNodes = 3
+          nFaces     = 4
+        else if (elem%nNode .eq. 6) then
+          nFaceNodes = 3
+          nFaces     = 5
+          if (face .gt. 2) nFaceNodes = 4
+        else if (elem%nNode .eq. 10) then
+          nFaceNodes = 6
+          nFaces     = 4
+        else if (elem%nNode .eq. 8) then
+          nFaceNodes = 4
+          nFaces     = 6
+        else if (elem%nNode .eq. 20) then
+          nFaceNodes = 8
+          nFaces     = 6
+        else
+          call msg%ferror(flag=error,src='faceNodes',
+     &      msg='Unsupported 3D element node count.',ia=elem%nNode)
+          return
+        end if
+
+        if ((face .lt. 1) .or. (face .gt. nFaces)) then
+          call msg%ferror(flag=error,src='faceNodes',
+     &      msg='Invalid face ID.',ia=face)
+          nFaceNodes = 0
+          return
+        end if
+
+        if (size(list) .lt. nFaceNodes) then
+          call msg%ferror(flag=error,src='faceNodes',
+     &      msg='Output node list is too small.',ivec=[size(list),
+     &      nFaceNodes])
+          nFaceNodes = 0
+          return
+        end if
+
+        if (elem%nNode .eq. 4) then
           if (face .eq. 1) list(1:3) = [1,2,3]
           if (face .eq. 2) list(1:3) = [1,4,2]
           if (face .eq. 3) list(1:3) = [2,4,3]
           if (face .eq. 4) list(1:3) = [3,4,1]
         else if (elem%nNode  .eq. 6) then
-          nFaceNodes = 3
           if (face .eq. 1) list(1:3) = [1,2,3]
           if (face .eq. 2) list(1:3) = [6,5,4]
           if (face .eq. 3) list(1:4) = [1,2,5,4]
           if (face .eq. 4) list(1:4) = [2,3,6,5]
           if (face .eq. 5) list(1:4) = [4,6,3,1]
-          if (face>2) nFaceNodes = 4
         else if (elem%nNode .eq. 10) then
-          nFaceNodes = 6
           if (face .eq. 1) list(1:6) = [1,2,3,5,6,7]
           if (face .eq. 2) list(1:6) = [1,4,2,8,9,5]
           if (face .eq. 3) list(1:6) = [2,4,3,9,10,6]
           if (face .eq. 4) list(1:6) = [3,4,1,10,8,7]
         else if (elem%nNode .eq. 8) then
-          nFaceNodes = 4
           if (face .eq. 1) list(1:4) = [1,2,3,4]
           if (face .eq. 2) list(1:4) = [5,8,7,6]
           if (face .eq. 3) list(1:4) = [1,5,6,2]
@@ -547,14 +604,18 @@
           if (face .eq. 5) list(1:4) = [3,7,8,4]
           if (face .eq. 6) list(1:4) = [4,8,5,1]
         else  if (elem%nNode .eq. 20) then
-          nFaceNodes = 8
           if (face .eq. 1) list(1:8) = [1,2,3,4,9,10,11,12]
           if (face .eq. 2) list(1:8) = [5,8,7,6,16,15,14,13]
           if (face .eq. 3) list(1:8) = [1,5,6,2,17,13,18,9]
           if (face .eq. 4) list(1:8) = [2,6,7,3,18,14,19,10]
-          if (face .eq. 5) list(1:8) = [3,7,8,4,19,15,6,11]
+          if (face .eq. 5) list(1:8) = [3,7,8,4,19,15,20,11]
           if (face .eq. 6) list(1:8) = [4,8,5,1,20,16,17,12]
         end if
+
+      else
+        call msg%ferror(flag=error,src='faceNodes',
+     &    msg='Element dimension must be 2 or 3.',ia=elem%nDim)
+        return
       end if
 
       end subroutine faceNodes

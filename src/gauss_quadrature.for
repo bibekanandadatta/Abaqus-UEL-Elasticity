@@ -20,13 +20,37 @@
       subroutine getGaussQuadrtr(elem,w,xi)
       ! driver subroutine for gaussian quadrature tabluation
 
-        use global_parameters, only: wp
+        use global_parameters, only: wp, zero
+        use error_logging
         use lagrange_element, only: element
 
         implicit none
 
         type(element)           :: elem
         real(wp), intent(out)   :: w(:), xi(:,:)
+
+        w  = zero
+        xi = zero
+
+        if ((elem%nDim .lt. 1) .or. (elem%nDim .gt. 3)) then
+          call msg%ferror(flag=error,src='getGaussQuadrtr',
+     &         msg='Invalid element dimension.',ia=elem%nDim)
+          return
+        end if
+
+        if (size(w) .ne. elem%nInt) then
+          call msg%ferror(flag=error,src='getGaussQuadrtr',
+     &         msg='Invalid quadrature weight array size.',
+     &         ia=size(w))
+          return
+        end if
+
+        if ((size(xi,dim=1) .ne. elem%nInt) .or.
+     &      (size(xi,dim=2) .ne. elem%nDim)) then
+          call msg%ferror(flag=error,src='getGaussQuadrtr',
+     &         msg='Invalid quadrature coordinate array shape.')
+          return
+        end if
 
         if (elem%nDim  .eq.  1) then
           call gaussQuadrtr1(elem%nNode,elem%nInt,w,xi)
@@ -60,8 +84,8 @@
       ! 1D bar2 and bar3 elements
       if ((nNode .eq. 2) .or. (nNode .eq. 3)) then
         if (nInt .eq. 1) then
-          w = zero
-          xi = two
+          w(1)    = two
+          xi(1,1) = zero
 
         else if (nInt  .eq.  2) then
           w(1:2)  = one
@@ -116,7 +140,7 @@
         if (nInt .eq. 1) then
           w(1)    = half
           xi(1,1) = third
-          xi(2,1) = third
+          xi(1,2) = third
 
         else if (nInt .eq. 3) then
           w(1:3) = sixth
@@ -149,8 +173,8 @@
 
         else if (nInt .eq. 6) then
 
-          w1D(1)    = 0.0549758718227661_wp
-          w1D(2)    = 0.11169079483905_wp
+          w1D(1)    = 0.054975871827661_wp
+          w1D(2)    = 0.111690794839005_wp
           x1D(1)    = 0.445948490915965_wp
           x1D(2)    = 0.091576213509771_wp
 
@@ -312,7 +336,7 @@
           xi(4,2) = one/six
           xi(4,3) = half
           xi(5,1) = one/six
-          xi(4,2) = one/six
+          xi(5,2) = one/six
           xi(5,3) = one/six
 
         else

@@ -273,12 +273,13 @@
 ! **********************************************************************
       interface inverse
 
-        module subroutine inverseMat_std(A,Ainv)
+        module subroutine inverseMat_std(A,Ainv,istat)
           use global_parameters
           use error_logging
           implicit none
           real(wp), intent(in)        :: A(:,:)
           real(wp), intent(out)       :: Ainv(:,:)
+          integer, intent(out), optional :: istat
         end subroutine inverseMat_std
 
         module subroutine inverseMat_lapack(A,Ainv,lib)
@@ -295,30 +296,33 @@
 
       interface linSolve
 
-        module subroutine linSolve_std_inv(A,b,x)
+        module subroutine linSolve_std_inv(A,b,x,istat)
           use global_parameters
           use error_logging
           implicit none
-          real(wp), intent(inout)       :: A(:,:), b(:)
+          real(wp), intent(in)          :: A(:,:), b(:)
           real(wp), intent(out)         :: x(:)
+          integer, intent(out), optional:: istat
         end subroutine linSolve_std_inv
 
-        module subroutine linSolve_lapack_LU(A,b,x,lib)
+        module subroutine linSolve_lapack_LU(A,b,x,lib,istat)
           use global_parameters
           use error_logging
           implicit none
-          real(wp), intent(inout)         :: A(:,:), b(:)
+          real(wp), intent(in)            :: A(:,:), b(:)
           character(len=*), intent(in)    :: lib
           real(wp), intent(out)           :: x(:)
+          integer, intent(out), optional  :: istat
         end subroutine linSolve_lapack_LU
 
-        module subroutine linSolve_lapack_QR(A,b,x,lib,method)
+        module subroutine linSolve_lapack_QR(A,b,x,lib,method,istat)
           use global_parameters
           use error_logging
           implicit none
-          real(wp), intent(inout)         :: A(:,:), b(:)
+          real(wp), intent(in)            :: A(:,:), b(:)
           character(len=*), intent(in)    :: lib, method
           real(wp), intent(out)           :: x(:)
+          integer, intent(out), optional  :: istat
         end subroutine linSolve_lapack_QR
 
       end interface linSolve
@@ -327,12 +331,14 @@
 
       interface LUfact
 
-        module subroutine luDecompose_std(A,L,U)
+        module subroutine luDecompose_std(A,P,L,U,nSwap,istat)
           use global_parameters
           use error_logging
           implicit none
           real(wp), intent(in)        :: A(:,:)
-          real(wp), intent(out)       :: L(:,:), U(:,:)
+          real(wp), intent(out)       :: P(:,:), L(:,:), U(:,:)
+          integer, intent(out)        :: nSwap
+          integer, intent(out), optional :: istat
         end subroutine luDecompose_std
 
         module subroutine luDecompose_lapack(A,P,L,U,lib)
@@ -417,7 +423,7 @@
           real(wp), intent (out)    :: R(:,:), U(:,:), V(:,:)
         end subroutine polarDecompose
 
-        module function solve(A,b,lib,method) result(x)
+        module function solve(A,b,lib,method,istat) result(x)
           use global_parameters
           use error_logging
           implicit none
@@ -425,6 +431,7 @@
           real(wp), intent(in)                    :: b(:)
           character(len=*), intent(in), optional  :: lib
           character(len=*), intent(in), optional  :: method
+          integer, intent(out), optional           :: istat
           real(wp)                                :: x(size(b))
         end function solve
 
@@ -698,10 +705,14 @@
         real(wp), intent(in)          :: A(:,:)
         logical                       :: skw
 
-        if ( all( abs(A+transpose(A)) .lt. epsilon(A) ) ) then
-          skw = .true.
+        if (isSquare(A)) then
+          if ( all( abs(A+transpose(A)) .lt. epsilon(A) ) ) then
+            skw   = .true.
+          else
+            skw   = .false.
+          end if
         else
-          skw = .false.
+          skw   = .false.
         end if
 
       end function isSkew
@@ -740,8 +751,12 @@
         real(wp), intent(in)          :: A(:,:)
         logical                       :: sym
 
-        if ( all( abs(A-transpose(A)) .lt. epsilon(A) ) ) then
-          sym = .true.
+        if (isSquare(A)) then
+          if ( all( abs(A-transpose(A)) .lt. epsilon(A) ) ) then
+            sym = .true.
+          else
+            sym = .false.
+          end if
         else
           sym = .false.
         end if
@@ -1032,14 +1047,15 @@
 
         real(wp), intent(in)        :: A(:,:)
         real(wp), intent(out)       :: detA
+        real(wp)                    :: P(size(A,1),size(A,2))
         real(wp)                    :: L(size(A,1),size(A,2))
         real(wp)                    :: U(size(A,1),size(A,2))
-        integer                     :: m, n, i
+        integer                     :: m, n, i, nSwap
 
 
         m     = size(A,1)
         n     = size(A,2)
-        detA  = one
+        detA  = zero
 
         if (m .ne. n) then
           call msg%ferror(flag=error,src='detMat_std',
@@ -1047,11 +1063,14 @@
           return
         end if
 
-        if (m .eq. 2) then
-          detA = A(1,1)*A(2,2) - A(1,2)*A(2,1)
+        if (m .eq. 1) then
+          detA  = A(1,1)
+
+        else if (m .eq. 2) then
+          detA  = A(1,1)*A(2,2) - A(1,2)*A(2,1)
 
         else if (m .eq. 3) then
-          detA =  A(1,1)*A(2,2)*A(3,3)
+          detA  =  A(1,1)*A(2,2)*A(3,3)
      &          + A(1,2)*A(2,3)*A(3,1)
      &          + A(1,3)*A(2,1)*A(3,2)
      &          - A(3,1)*A(2,2)*A(1,3)
@@ -1060,12 +1079,13 @@
 
         else if ( n .gt. 3) then
 
-          call LUfact(A,L,U)
+          call LUfact(A,P,L,U,nSwap)
 
-          detA = one
+          detA    = one
           do i = 1, m
-            detA = detA*L(i,i)*U(i,i)
+            detA  = detA*U(i,i)
           end do
+          if (mod(nSwap,2) .eq. 1) detA = -detA
 
         end if
 
@@ -1088,8 +1108,8 @@
 
 ! **********************************************************************
 
-      module subroutine inverseMat_std(A,Ainv)
-      ! this subroutine returns Ainv and detA for a square matrix A
+      module subroutine inverseMat_std(A,Ainv,istat)
+      ! this subroutine returns the inverse of a square matrix A
 
       use global_parameters
       use error_logging
@@ -1098,12 +1118,13 @@
 
       real(wp), intent(in)        :: A(:,:)
       real(wp), intent(out)       :: Ainv(:,:)
-      real(wp)                    :: detA, rdetA
+      integer, intent(out), optional :: istat
+      real(wp)                    :: P(size(A,1),size(A,2))
       real(wp)                    :: L(size(A,1),size(A,2))
       real(wp)                    :: U(size(A,1),size(A,2))
       real(wp)                    :: b(size(A,1)), d(size(A,1))
       real(wp)                    :: x(size(A,1))
-      integer                     :: m1, n1, m2, n2, i, j, k
+      integer                     :: m1, n1, m2, n2, i, k, nSwap, chk
 
 
 
@@ -1112,156 +1133,208 @@
       m2    = size(Ainv,1)
       n2    = size(Ainv,2)
       Ainv  = zero
+      if (present(istat)) istat = 0
 
-      if ( (m1 .ne. n1) .or. (m2 .ne. n2) ) then
+      if ( (m1 .ne. n1) .or.
+     &     (m2 .ne. m1) .or. (n2 .ne. n1) ) then
+        if (present(istat)) istat = -1
         call msg%ferror(flag=error,src='inverseMat_std',
-     &          msg ='Matrix is not square: ', ivec=[m1 , n1, m2, n2])
+     &          msg ='Incompatible matrix sizes: ',
+     &          ivec=[m1, n1, m2, n2])
         return
       end if
 
-      call detMat(A,detA)
+      call LUfact(A,P,L,U,nSwap,chk)
 
-      if (abs(detA) .le. tolX) then
-        call msg%ferror(flag=error,src='inverseMat_std',
-     &      msg='Singular/near-singular matrix: ', ra=detA)
+      if (chk .ne. 0) then
+        if (present(istat)) istat = chk
         return
       end if
 
-      rdetA = one/detA
-
-      if (m1 .eq. 2) then
-
-        Ainv(1,1) =  rdetA*A(2,2)
-        Ainv(1,2) = -rdetA*A(1,2)
-        Ainv(2,1) = -rdetA*A(2,1)
-        Ainv(2,2) =  rdetA*A(1,1)
-
-      else if (m1 .eq. 3) then
-
-        Ainv(1,1) = rdetA*(A(2,2)*A(3,3)-A(3,2)*A(2,3))
-        Ainv(1,2) = rdetA*(A(3,2)*A(1,3)-A(1,2)*A(3,3))
-        Ainv(1,3) = rdetA*(A(1,2)*A(2,3)-A(2,2)*A(1,3))
-        Ainv(2,1) = rdetA*(A(3,1)*A(2,3)-A(2,1)*A(3,3))
-        Ainv(2,2) = rdetA*(A(1,1)*A(3,3)-A(3,1)*A(1,3))
-        Ainv(2,3) = rdetA*(A(2,1)*A(1,3)-A(1,1)*A(2,3))
-        Ainv(3,1) = rdetA*(A(2,1)*A(3,2)-A(3,1)*A(2,2))
-        Ainv(3,2) = rdetA*(A(3,1)*A(1,2)-A(1,1)*A(3,2))
-        Ainv(3,3) = rdetA*(A(1,1)*A(2,2)-A(2,1)*A(1,2))
-
-      else if (m1 .gt. 3) then
-
-        call LUfact(A,L,U)
-
-        do k = 1,m1
-          b       = zero
-          b(k)    = one
-          d(1)    = b(1)
-          do i = 2, m1
-            d(i)  = b(i)
-            d(i)  = d(i) - dot_product(L(i,1:i-1),d(1:i-1))
-          end do
-
-          x(m1)   = d(m1)/U(m1,m1)
-
-          do i = m1-1,1,-1
-            x(i)  = d(i)
-            x(i)  = x(i)-dot_product(U(i,i+1:m1),x(i+1:m1))
-            x(i)  = x(i)/U(i,i)
-          end do
-
-          Ainv(1:m1,k)  = x(1:m1)
-          b(k)          = zero
+      do k = 1,m1
+        b       = zero
+        b(k)    = one
+        d       = matmul(P,b)
+        do i = 2, m1
+          d(i)  = d(i) - dot_product(L(i,1:i-1),d(1:i-1))
         end do
 
-      end if
+        x(m1)   = d(m1)/U(m1,m1)
+
+        do i = m1-1,1,-1
+          x(i)  = d(i)
+          x(i)  = x(i)-dot_product(U(i,i+1:m1),x(i+1:m1))
+          x(i)  = x(i)/U(i,i)
+        end do
+
+        Ainv(1:m1,k)  = x(1:m1)
+      end do
 
       end subroutine inverseMat_std
 
 ! **********************************************************************
 
-      module subroutine linSolve_std_inv(A,b,x)
-      ! this subroutine solves for linear system using LU decomposition
+      module subroutine linSolve_std_inv(A,b,x,istat)
+      ! this subroutine solves a square linear system using its inverse
 
         use global_parameters
         use error_logging
 
         implicit none
 
-        real(wp), intent(inout)       :: A(:,:), b(:)
-        real(wp), intent(out)         :: x(:)
-        real(wp)                      :: Ainv(size(A,1),size(A,2))
-        integer                       :: m, n
+        real(wp), intent(in)            :: A(:,:), b(:)
+        real(wp), intent(out)           :: x(:)
+        integer, intent(out), optional  :: istat
+        real(wp)                        :: Ainv(size(A,1),size(A,2))
+        integer                         :: m, n, chk
 
 
         m   = size(A,1)
         n   = size(A,2)
         x   = zero
+        if (present(istat)) istat = 0
 
-        if ( m .ne. n) then
+        if ( (m .lt. 1) .or. (m .ne. n) ) then
+          if (present(istat)) istat = -1
           call msg%ferror(flag=error,src='linSolve_std_inv',
      &          msg ='Matrix is not square: ', ivec=[m , n])
           return
         end if
 
-        call inverse(A,Ainv)
+        if (size(b) .ne. m) then
+          if (present(istat)) istat = -2
+          call msg%ferror(flag=error,src='linSolve_std_inv',
+     &          msg='Incorrect dimension of rhs vector.',
+     &          ivec=[m, size(b)])
+          return
+        end if
 
-        x   = matmul(Ainv,b)
+        if (size(x) .ne. m) then
+          if (present(istat)) istat = -3
+          call msg%ferror(flag=error,src='linSolve_std_inv',
+     &          msg='Incorrect dimension of solution vector.',
+     &          ivec=[m, size(x)])
+          return
+        end if
+
+        call inverse(A,Ainv,istat=chk)
+
+        if (chk .ne. 0) then
+          if (present(istat)) istat = chk
+          return
+        end if
+
+        x = matmul(Ainv,b)
 
       end subroutine linSolve_std_inv
 
 ! **********************************************************************
 
-      module subroutine luDecompose_std(A,L,U)
-      ! this subroutine computes the inverse of an arbitrary
-      ! square matrix of size nxn using LU decomposition
+      module subroutine luDecompose_std(A,P,L,U,nSwap,istat)
+      ! this subroutine computes the partial-pivoted LU decomposition
+      ! P*A = L*U of a square matrix A
 
         use global_parameters
         use error_logging
         implicit none
 
         real(wp), intent(in)        :: A(:,:)
-        real(wp), intent(out)       :: L(:,:), U(:,:)
-        real(wp)                    :: coeff, detA
+        real(wp), intent(out)       :: P(:,:), L(:,:), U(:,:)
+        integer, intent(out)        :: nSwap
+        integer, intent(out), optional :: istat
+        real(wp)                    :: coeff, pivotTol
+        real(wp)                    :: row(size(A,2))
         integer                     :: m1, n1, m2, n2, m3, n3
-        integer                     :: i, j
+        integer                     :: m4, n4
+        integer                     :: i, j, pivotRow
 
 
         m1  = size(A,1)
         n1  = size(A,2)
-        m2  = size(L,1)
-        n2  = size(L,2)
-        m3  = size(U,1)
-        n3  = size(U,2)
+        m2  = size(P,1)
+        n2  = size(P,2)
+        m3  = size(L,1)
+        n3  = size(L,2)
+        m4  = size(U,1)
+        n4  = size(U,2)
 
+        P   = zero
         L   = zero
-        U   = A
+        U   = zero
+        nSwap = 0
+        if (present(istat)) istat = 0
 
         if (m1 .ne. n1) then
+          if (present(istat)) istat = -1
           call msg%ferror(flag=error,src='luDecompose_std',
      &          msg ='Matrix is not square: ', ivec=[m1 , n1])
           return
         end if
 
-        !! TODO: add dimensional checking for the requested output arguments
+        if ( (m2 .ne. m1) .or. (n2 .ne. n1) .or.
+     &       (m3 .ne. m1) .or. (n3 .ne. n1) .or.
+     &       (m4 .ne. m1) .or. (n4 .ne. n1) ) then
+          if (present(istat)) istat = -2
+          call msg%ferror(flag=error,src='luDecompose_std',
+     &          msg='Incorrect output dimensions: ',
+     &          ivec=[m1,n1,m2,n2,m3,n3,m4,n4])
+          return
+        end if
+
+        U         = A
+        pivotTol  = tolX*maxval(abs(A))
+
+        do i = 1,m1
+          P(i,i)  = one
+          L(i,i)  = one
+        end do
 
         do j = 1, m1-1
-          do i = j+1, m1
-            if (abs(U(j,j)) .le. tolX) then
-              call msg%ferror( flag=error,src='luDecompose_std',
-     &        msg ='Near zero pivot: ', ia=j, ra=U(j,j) )
-              return
-            else
-              coeff       = U(i,j)/U(j,j)
-              L(i,j)      = coeff
-              U(i,j+1:m1) = U(i,j+1:m1) - coeff*U(j,j+1:m1)
-              U(i,j)      = zero
+          pivotRow = j-1 + maxloc(abs(U(j:m1,j)),dim=1)
+
+          if (abs(U(pivotRow,j)) .le. pivotTol) then
+            if (present(istat)) istat = j
+            call msg%ferror(flag=error,src='luDecompose_std',
+     &          msg='Singular/near-singular pivot: ',
+     &          ia=j, ra=U(pivotRow,j))
+            U = zero
+            return
+          end if
+
+          if (pivotRow .ne. j) then
+            row           = U(j,:)
+            U(j,:)        = U(pivotRow,:)
+            U(pivotRow,:) = row
+
+            row           = P(j,:)
+            P(j,:)        = P(pivotRow,:)
+            P(pivotRow,:) = row
+
+            if (j .gt. 1) then
+              row(1:j-1)           = L(j,1:j-1)
+              L(j,1:j-1)           = L(pivotRow,1:j-1)
+              L(pivotRow,1:j-1)    = row(1:j-1)
             end if
+
+            nSwap = nSwap + 1
+          end if
+
+          do i = j+1, m1
+            coeff       = U(i,j)/U(j,j)
+            L(i,j)      = coeff
+            U(i,j:m1)   = U(i,j:m1) - coeff*U(j,j:m1)
+            U(i,j)      = zero
           end do
         end do
 
-        do i=1,m1
-          L(i,i) = one
-        end do
+        if (abs(U(m1,m1)) .le. pivotTol) then
+          if (present(istat)) istat = m1
+          call msg%ferror(flag=error,src='luDecompose_std',
+     &        msg='Singular/near-singular pivot: ',
+     &        ia=m1, ra=U(m1,m1))
+          U = zero
+          return
+        end if
 
       end subroutine luDecompose_std
 
@@ -1320,7 +1393,7 @@
         n     = size(A,2)
         lda   = m
         mat   = A
-        cond  = zero
+        cond  = huge(one)
 
         if (m .ne. n) then
         call msg%ferror(flag=error, src='condition',
@@ -1334,31 +1407,34 @@
         ! LU factorization of A
         call dgetrf(m, n, mat, lda, ipiv, chk)
 
-        if (chk .eq. 0) then
-          call dgecon(norm, n, mat, lda, anorm, rcond, work,
-     &                iwork, chk)
-
-          if (chk .lt. 0) then
-            call msg%ferror(flag=error, src='condition',
-     &            msg='Illegal argument in DGECON.', ia=chk)
-            return
-          end if
-
-          cond = one/rcond
-
-          if (rcond .lt. tol) then
-            call msg%ferror(flag=warn, src='condition',
-     &            msg='Ill-conditioned matrix', ra=cond)
-          end if
-
-        else if(chk .gt. 0) then
+        if (chk .gt. 0) then
           call msg%ferror(flag=error, src='condition',
      &            msg='Singular upper triangular matrix.', ia=chk)
-
-        else
+          return
+        else if (chk .lt. 0) then
           call msg%ferror(flag=error, src='condition',
      &            msg='Illegal argument in DGETRF.', ia=chk)
           return
+        end if
+
+        call dgecon(norm, n, mat, lda, anorm, rcond, work,
+     &              iwork, chk)
+
+        if (chk .ne. 0) then
+          call msg%ferror(flag=error, src='condition',
+     &          msg='Illegal argument in DGECON.', ia=chk)
+          return
+        end if
+
+        if (rcond .le. tiny(one)) then
+          cond = huge(one)
+        else
+          cond = one/rcond
+        end if
+
+        if (rcond .lt. tol) then
+          call msg%ferror(flag=warn, src='condition',
+     &          msg='Ill-conditioned matrix', ra=cond)
         end if
 
       end subroutine condition
@@ -1419,6 +1495,7 @@
         if(chk .gt. 0) then
           call msg%ferror(flag=error, src='detMat_lapack',
      &            msg='Singular upper triangular matrix.', ia=chk)
+          detA  = zero
           return
 
         else if (chk .lt. 0) then
@@ -1591,15 +1668,15 @@
         integer                       :: ipiv(min(size(A,1),size(A,2)))
         integer                       :: m, n, lda, lwork, chk
         integer, parameter            :: nb = 64
+        real(wp)                      :: mat(size(A,1),size(A,2))
         real(wp), allocatable         :: work(:)
-
 
 
         m     = size(A,1)
         n     = size(A,2)
         lda   = m
         lwork = nb*n
-        Ainv  = A             ! preventing A from being overwritten
+        Ainv  = zero
 
         if (trim(lib) .ne. 'LAPACK') then
           call msg%ferror(flag=error, src='inverseMat_lapack',
@@ -1607,16 +1684,20 @@
           return
         end if
 
-        allocate( work(lwork) )
-
-        if ( m .ne. n) then
+        if ( (m .ne. n) .or.
+     &       (size(Ainv,1) .ne. m) .or.
+     &       (size(Ainv,2) .ne. n) ) then
           call msg%ferror(flag=error, src='inverseMat_lapack',
-     &          msg ='Matrix is not square: ', ivec=[m, n])
+     &          msg ='Incompatible matrix sizes: ',
+     &          ivec=[m, n, size(Ainv,1), size(Ainv,2)])
           return
         end if
 
+        allocate( work(lwork) )
+        mat = A
+
         ! LAPACK subroutine: returns pivot indices from LU decomposition
-        call dgetrf(m, n ,Ainv, lda, ipiv, chk)
+        call dgetrf(m, n, mat, lda, ipiv, chk)
 
         if(chk .gt. 0) then
           call msg%ferror(flag=error, src='inverseMat_lapack: dgetrf',
@@ -1625,12 +1706,12 @@
 
         else if (chk .lt. 0) then
           call msg%ferror(flag=error, src='inverseMat_lapack: dgetrf',
-     &            msg='Illegal argument in DGETRI.', ia=chk)
+     &            msg='Illegal argument in DGETRF.', ia=chk)
           return
         end if
 
         ! LAPACK subroutine: calculates inverse from LU
-        call dgetri(n, Ainv, lda, ipiv, work, m, chk)
+        call dgetri(n, mat, lda, ipiv, work, lwork, chk)
 
         if(chk .gt. 0) then
           call msg%ferror(flag=error, src='inverseMat_lapack: dgetri',
@@ -1642,12 +1723,14 @@
      &            msg='Illegal argument in DGETRI.', ia=chk)
           return
         end if
+
+        Ainv = mat
 
       end subroutine inverseMat_lapack
 
 ! **********************************************************************
 
-      module subroutine linSolve_lapack_LU(A,b,x,lib)
+      module subroutine linSolve_lapack_LU(A,b,x,lib,istat)
       ! this subroutine solves for linear system using LAPACK subroutine
 
         use global_parameters
@@ -1655,16 +1738,22 @@
 
         implicit none
 
-        real(wp), intent(inout)         :: A(:,:), b(:)
+        real(wp), intent(in)            :: A(:,:), b(:)
         character(len=*), intent(in)    :: lib
         real(wp), intent(out)           :: x(:)
+        integer, intent(out), optional  :: istat
         integer                         :: ipiv(size(A,2))
         integer                         :: m, n, lda, ldb
         integer                         :: chk
         real(wp)                        :: mat(size(A,1),size(A,2))
+        real(wp)                        :: rhsWork(size(A,1))
         integer, parameter              :: nrhs = 1
 
+        x = zero
+        if (present(istat)) istat = 0
+
         if (trim(lib) .ne. 'LAPACK') then
+          if (present(istat)) istat = -4
           call msg%ferror(flag=error, src='linSolve_lapack_LU',
      &           msg='Wrong keyword for library.', ch=lib)
           return
@@ -1673,25 +1762,37 @@
         m     = size(A,1)
         n     = size(A,2)
         lda   = m
-        ldb   = size(b)     ! no of rows of the rhs vector
-        x     = zero
+        ldb   = m
 
-        if ( m .ne. n) then
+        if ( (m .lt. 1) .or. (m .ne. n) ) then
+          if (present(istat)) istat = -1
           call msg%ferror(flag=error, src='linSolve_lapack_LU',
      &          msg ='Matrix is not square: ', ivec=[m, n])
           return
         end if
 
-        if (ldb .ne. m) then
+        if (size(b) .ne. m) then
+          if (present(istat)) istat = -2
           call msg%ferror(flag=error, src='linSolve_lapack_LU',
-     &      msg ='Incorrect dimension of rhs vector.', ivec=[m, ldb])
+     &      msg ='Incorrect dimension of rhs vector.',
+     &      ivec=[m, size(b)])
+          return
+        end if
+
+        if (size(x) .ne. n) then
+          if (present(istat)) istat = -3
+          call msg%ferror(flag=error, src='linSolve_lapack_LU',
+     &      msg ='Incorrect dimension of solution vector.',
+     &      ivec=[n, size(x)])
           return
         end if
 
         ! DGESV solves the linear system and returns in b
         mat   = A         ! copying to avoid overwriting
-        x     = b         ! copying to avoid overwriting
-        call dgesv(n, nrhs, mat, lda, ipiv, x, ldb, chk)
+        rhsWork = b       ! copying to avoid overwriting
+        call dgesv(n, nrhs, mat, lda, ipiv, rhsWork, ldb, chk)
+
+        if (present(istat)) istat = chk
 
         if (chk .lt. 0) then
           call msg%ferror(flag=error, src='linSolve_lapack_LU: dgesv',
@@ -1703,11 +1804,13 @@
           return
         end if
 
+        x = rhsWork
+
       end subroutine linSolve_lapack_LU
 
 ! **********************************************************************
 
-      module subroutine linSolve_lapack_QR(A,b,x,lib,method)
+      module subroutine linSolve_lapack_QR(A,b,x,lib,method,istat)
       ! this subroutine solves for linear system using LAPACK subroutine
       ! optional method is QR approach
 
@@ -1716,49 +1819,83 @@
 
         implicit none
 
-        real(wp), intent(inout)         :: A(:,:), b(:)
+        real(wp), intent(in)            :: A(:,:), b(:)
         character(len=*), intent(in)    :: lib, method
         real(wp), intent(out)           :: x(:)
+        integer, intent(out), optional  :: istat
         integer                         :: m, n, lda, ldb, lwork, chk
+        integer                         :: allocChk, i, minRank
         real(wp), allocatable           :: work(:)
         real(wp)                        :: mat(size(A,1),size(A,2))
+        real(wp)                        :: rhsWork(max(size(A,1),
+     &                                               size(A,2)))
+        real(wp)                        :: pivotTol
         integer, parameter              :: nb = 64, nrhs = 1
 
         m   = size(A,1)
         n   = size(A,2)
         x   = zero
+        if (present(istat)) istat = 0
 
         if ( trim(lib) .ne. 'LAPACK' ) then
+          if (present(istat)) istat = -4
           call msg%ferror(flag=error, src='linSolve_lapack_QR',
      &           msg='Wrong keyword for library.', ch=trim(lib))
           return
         end if
 
         if ( trim(method) .ne. 'QR' ) then
+          if (present(istat)) istat = -5
           call msg%ferror(flag=error, src='linSolve_lapack_QR',
      &           msg='Wrong keyword for method.', ch=trim(method))
           return
         end if
 
-        lda   = m
-        ldb   = size(b)
-
-        ! DGELS requires LDB >= max(1, max(m,n)) for NRHS=1
-        if ( ldb .lt. max(m,n) ) then
+        if ( (m .lt. 1) .or. (n .lt. 1) ) then
+          if (present(istat)) istat = -1
           call msg%ferror(flag=error, src='linSolve_lapack_QR',
-     &      msg='RHS vector too small for DGELS (need >= max(m,n)).',
-     &      ivec=[m, n, ldb])
+     &           msg='Matrix dimensions must be positive.',
+     &           ivec=[m,n])
           return
         end if
 
-        lwork = n + nb*m
-        if (lwork .lt. 1) lwork = 1
-        allocate( work(lwork) )
+        lda   = m
+        ldb   = max(m,n)
+
+        if (size(b) .ne. m) then
+          if (present(istat)) istat = -2
+          call msg%ferror(flag=error, src='linSolve_lapack_QR',
+     &      msg='Incorrect dimension of rhs vector.',
+     &      ivec=[m, size(b)])
+          return
+        end if
+
+        if (size(x) .ne. n) then
+          if (present(istat)) istat = -3
+          call msg%ferror(flag=error, src='linSolve_lapack_QR',
+     &      msg='Incorrect dimension of solution vector.',
+     &      ivec=[n, size(x)])
+          return
+        end if
+
+        lwork = max(1,n+nb*m)
+        allocate(work(lwork),stat=allocChk)
+
+        if (allocChk .ne. 0) then
+          if (present(istat)) istat = -6
+          call msg%ferror(flag=error, src='linSolve_lapack_QR',
+     &      msg='Failed to allocate DGELS work array.', ia=allocChk)
+          return
+        end if
 
         mat = A     ! copy to prevent overwriting
-        x   = b     ! DGELS overwrites RHS with solution + residual chk
+        rhsWork = zero
+        rhsWork(1:m) = b
 
-        call dgels('N', m, n, nrhs, mat, lda, x, ldb, work, lwork, chk)
+        call dgels('N', m, n, nrhs, mat, lda, rhsWork, ldb,
+     &             work, lwork, chk)
+
+        if (present(istat)) istat = chk
 
         if (chk .lt. 0) then
           call msg%ferror(flag=error, src='linSolve_lapack_QR: dgels',
@@ -1772,6 +1909,23 @@
           return
 
         end if
+
+        ! DGELS assumes full rank and can return zero in chk when a
+        ! computed triangular pivot is merely very small.
+        minRank = min(m,n)
+        pivotTol = tolX*maxval(abs(A))
+        do i = 1,minRank
+          if (abs(mat(i,i)) .le. pivotTol) then
+            if (present(istat)) istat = i
+            call msg%ferror(flag=error,
+     &            src='linSolve_lapack_QR: dgels',
+     &            msg='Singular/near-singular triangular pivot.',
+     &            ia=i, ra=mat(i,i))
+            return
+          end if
+        end do
+
+        x = rhsWork(1:n)
 
         deallocate(work)
 
@@ -1854,7 +2008,7 @@
 ! **********************************************************************
 
       module subroutine luDecompose_lapack(A,P,L,U,lib)
-      ! calculates A = P * L* U using LAPACK routines DGETRF
+      ! calculates P * A = L* U using LAPACK routines DGETRF
 
         use global_parameters
         use error_logging
@@ -1880,6 +2034,13 @@
 
         m     = size(A,1)
         n     = size(A,2)
+
+        if (m .ne. n) then
+          call msg%ferror(flag=error, src='luDecompose_lapack',
+     &          msg='Matrix is not square: ', ivec=[m, n])
+          return
+        end if
+
         lda   = m
         L     = A
 
@@ -1978,10 +2139,10 @@
         real(wp)                        :: dlange
         real(wp)                        :: mat(size(A,1),size(A,2))
 
-        m = size(A,1)
-        n = size(A,2)
-        lda = m
-        mat = A
+        m     = size(A,1)
+        n     = size(A,2)
+        lda   = m
+        mat   = A
 
         ! norm of A
         anorm = dlange(normType, m, n, mat, lda, work)
@@ -1990,7 +2151,7 @@
 
 ! **********************************************************************
 
-      module function solve(A,b,lib,method) result(x)
+      module function solve(A,b,lib,method,istat) result(x)
 
         use global_parameters
         use error_logging
@@ -2001,8 +2162,9 @@
         real(wp), intent(in)                    :: b(:)
         character(len=*), intent(in), optional  :: lib
         character(len=*), intent(in), optional  :: method
+        integer, intent(out), optional           :: istat
         real(wp)                                :: x(size(b))
-        integer                                 :: m, n
+        integer                                 :: m, n, linStatus
 
         real(wp)            :: mat(size(A,1),size(A,2)), vec(size(b))
 
@@ -2012,32 +2174,46 @@
         mat   = A
         vec   = b
         x     = zero
+        linStatus = 0
+        if (present(istat)) istat = 0
 
-        if ( m .ne. n ) then
+        if ( (m .lt. 1) .or. (m .ne. n) ) then
+          if (present(istat)) istat = -1
           call msg%ferror(flag=error, src='solve',
      &          msg='Matrix is not square: ', ivec=[m, n])
           return
         end if
 
+        if (size(b) .ne. m) then
+          if (present(istat)) istat = -2
+          call msg%ferror(flag=error, src='solve',
+     &          msg='Incorrect dimension of rhs vector.',
+     &          ivec=[m, size(b)])
+          return
+        end if
 
         if (.not. present(lib)) then
-          call linSolve(mat, vec, x)
+          call linSolve(mat, vec, x, istat=linStatus)
         else
           if (.not. present(method)) then
-            call linSolve(mat, vec, x, lib)
+            call linSolve(mat, vec, x, lib, istat=linStatus)
           else
             select case (trim(method))
             case ('LU')
-              call linSolve(mat, vec, x, lib)
+              call linSolve(mat, vec, x, lib, istat=linStatus)
             case ('QR')
-              call linSolve(mat, vec, x, lib, method)
+              call linSolve(mat, vec, x, lib, method,
+     &                      istat=linStatus)
             case default
+              if (present(istat)) istat = -4
               call msg%ferror(error, src='solve', msg='Unknown method:',
      &                        ch=trim(method))
               return
             end select
           end if
         end if
+
+        if (present(istat)) istat = linStatus
 
       end function solve
 

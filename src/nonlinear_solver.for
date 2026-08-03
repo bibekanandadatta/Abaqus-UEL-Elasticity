@@ -81,7 +81,7 @@
       subroutine newton(func, xOld, x, jac, vars, opts, sflag)
       ! standard Newton-Raphson solver for a single nonlinear equation
 
-        use global_parameters, only: wp
+        use global_parameters, only: wp, zero
         use linear_algebra
         use error_logging
 
@@ -96,10 +96,10 @@
         logical, intent(out), optional          :: sflag
         type(options)                           :: params
         real(wp)                                :: fx, dfx, dx
-        real(wp)                                :: fx0
         integer                                 :: iter
 
         if ( present(opts) ) params = opts
+        if ( present(sflag) ) sflag = .false.
 
         x = xOld
 
@@ -117,10 +117,10 @@
      &              .or. (.not. present(jac)) )   then
             if ( present(vars) ) then
               call func(x, fx, vars=vars)
-              call fdjac(func, x, fx, dfx, vars=vars)
+              call fdjac(func, x, fx, dfx, vars=vars, opts=params)
             else
               call func(x, fx)
-              call fdjac(func, x, fx, dfx)
+              call fdjac(func, x, fx, dfx, opts=params)
             end if
           else
             call msg%ferror(flag=error, src='newton',
@@ -128,23 +128,38 @@
             return
           end if
 
-          if (iter .eq. 1) fx0 = fx
-
-          if ( ( abs(fx)/abs(fx0) .le. params%tolfx )
-     &        .or. ( abs(fx) .le. params%tolfx )
-     &        .or. ( abs(dx) .le. params%tolx) ) then
-            sflag = .true.
+          if ( abs(fx) .le. params%tolfx ) then
+            if (present(sflag)) then
+              sflag   = .true.
+            end if
             return
           else
-            dx  = - fx/dfx
-            x   = x + dx
+            if ( abs(dfx) .le. sqrt(eps) ) then
+              call msg%ferror(flag=error, src='newton',
+     &              msg='Derivative is close to zero.')
+              if (present(sflag)) then
+                sflag = .false.
+              end if
+              return
+            end if
+            dx      = - fx/dfx
+            if ( abs(dx) .le. params%tolx ) then
+              if (present(sflag)) then
+                sflag   = .true.
+              end if
+              return
+            end if
+            x       = x + dx
           end if
 
         end do
 
         call msg%ferror(flag=warn, src='newton',
      &          msg='Execeeded maximum iterations.')
-        sflag = .false.
+
+        if (present(sflag)) then
+          sflag = .false.
+        end if
 
       end subroutine newton
 
@@ -173,40 +188,42 @@
         real(wp)                                :: fx, dfx
         real(wp)                                :: xl, xh, temp
         real(wp)                                :: fxMin, fxMax
-        real(wp)                                :: fx0
         real(wp)                                :: dx, dxOld
         integer                                 :: iter
 
         if ( present(opts) ) params = opts
+        if ( present(sflag) ) sflag = .false.
 
         call func(xMin, fxMin, vars=vars)
         call func(xMax, fxMax, vars=vars)
 
         if ( fxMin*fxMax .gt. zero ) then
-          x = xOld
+          x   = xOld
           call msg%ferror(flag=error, src='newton_bisect',
      &     msg='Roots are not bound within limit.', rvec=[xMin, xMax])
           return
         end if
 
         if ( fxMin .eq. zero ) then
-          x = xMin
+          x   = xMin
+          if (present(sflag)) sflag = .true.
           return
         else if ( fxMax .eq. zero ) then
-          x = xMax
+          x   = xMax
+          if (present(sflag)) sflag = .true.
           return
         end if
 
         if ( fxMin .lt. zero ) then
-          xl = xMin
-          xh = xMax
+          xl  = xMin
+          xh  = xMax
         else
-          xl = xMax
-          xh = xMin
+          xl  = xMax
+          xh  = xMin
         end if
 
-        if ( xOld .lt. xMin ) xOld = xMin
-        if ( xOld .gt. xMax ) xOld = xMax
+        if ( xOld .lt. xMin ) xOld  = xMin
+        if ( xOld .gt. xMax ) xOld  = xMax
 
         x     = xOld
         dxOld = abs(xMax - xMin)
@@ -224,10 +241,10 @@
      &            .or. (.not. present(jac)) )   then
           if ( present(vars) ) then
             call func(x, fx, vars=vars)
-            call fdjac(func, x, fx, dfx, vars=vars)
+            call fdjac(func, x, fx, dfx, vars=vars, opts=params)
           else
             call func(x, fx)
-            call fdjac(func, x, fx, dfx)
+            call fdjac(func, x, fx, dfx, opts=params)
           end if
         else
           call msg%ferror(flag=error, src='fsolve',
@@ -235,30 +252,34 @@
           return
         end if
 
-        fx0 = fx
-
         do iter = 1, params%maxIter
 
-          if ( ( (  ((x-xh)*dfx - fx) * ((x-xl)*dfx - fx) ) .gt. zero )
+          if ( ( abs(dfx) .le. sqrt(eps) )
+     &       .or. ( (  ((x-xh)*dfx - fx) * ((x-xl)*dfx - fx) )
+     &       .gt. zero )
      &       .or. ( abs(two*fx) .gt. abs(dxOld*dfx) ) ) then
 
-            dxOld = dx
-            dx = half*(xh-xl)
-            x = xl + dx
+            dxOld   = dx
+            dx      = half*(xh-xl)
+            x       = xl + dx
 
             if (xl .eq. x) then
-              sflag = .true.
+              if (present(sflag)) then
+                sflag = .true.
+              end if
               return
             end if
 
           else
-            dxOld = dx
-            dx = -fx/dfx
-            temp = x
-            x = x + dx
+            dxOld   = dx
+            dx      = -fx/dfx
+            temp    = x
+            x       = x + dx
 
             if (temp .eq. x) then
-              sflag = .true.
+              if (present(sflag)) then
+                sflag = .true.
+              end if
               return
             end if
 
@@ -276,10 +297,10 @@
      &        .or. (.not. present(jac)) )   then
             if ( present(vars) ) then
               call func(x, fx, vars=vars)
-              call fdjac(func, x, fx, dfx, vars=vars)
+              call fdjac(func, x, fx, dfx, vars=vars, opts=params)
             else
               call func(x, fx)
-              call fdjac(func, x, fx, dfx)
+              call fdjac(func, x, fx, dfx, opts=params)
             end if
           else
             call msg%ferror(flag=error, src='newton_hybrid',
@@ -288,24 +309,27 @@
           end if
 
 
-          if ( ( abs(fx)/abs(fx0) .le. params%tolfx )
-     &        .or. ( abs(fx) .le. params%tolfx )
+          if ( ( abs(fx) .le. params%tolfx )
      &        .or. ( abs(dx) .le. params%tolx) ) then
-            sflag = .true.
+            if (present(sflag)) then
+              sflag   = .true.
+            end if
             return
           end if
 
           if ( fx .lt. zero ) then
-            xl = x
+            xl  = x
           else
-            xh = x
+            xh  = x
           end if
 
         end do
 
         call msg%ferror(flag=warn, src='newton_hybrid',
      &          msg='Execeeded maximum iterations.')
-        sflag = .false.
+        if (present(sflag)) then
+          sflag = .false.
+        end if
 
       end subroutine newton_hybrid
 
@@ -333,13 +357,16 @@
         real(wp)                                :: rhs(size(x))
         real(wp)                                :: fjac(size(x),size(x))
         real(wp)                                :: dx(size(x))
+        real(wp)                                :: xBase(size(x))
         real(wp)                                :: fvec0(size(x))
         real(wp)                                :: fnorm
-        integer                                 :: iter
+        logical                                 :: lsflag
+        integer                                 :: iter, linStatus
         integer                                 :: n
 
         if ( present(opts) ) params = opts
-        x = xOld
+        if ( present(sflag) ) sflag = .false.
+        x   = xOld
 
         do iter = 1, params%maxIter
 
@@ -355,10 +382,11 @@
      &        .or. (.not. present(jac)) )   then
             if ( present(vars) ) then
               call func(x, fvec, vars=vars)
-              call fdjac(func, x, fvec, fjac, vars=vars)
+              call fdjac(func, x, fvec, fjac,
+     &                   vars=vars, opts=params)
             else
               call func(x, fvec)
-              call fdjac(func, x, fvec, fjac)
+              call fdjac(func, x, fvec, fjac, opts=params)
             end if
           else
             call msg%ferror(flag=error, src='fsolve',
@@ -368,35 +396,55 @@
 
           if (iter .eq. 1) fvec0 = fvec
 
-          if ( ( norm2(fvec)/norm2(fvec0) .le. params%tolfx )
-     &        .or. ( norm2(fvec) .le. params%tolfx ) ) then
-            sflag = .true.
+          if ( norm2(fvec) .le. params%tolfx ) then
+            if (present(sflag)) then
+              sflag = .true.
+            end if
             return
           end if
 
-          rhs = -fvec
+          rhs       = -fvec
+          linStatus = 0
 
           if (  (trim(params%lib) .eq. 'Standard') .and.
      &          (trim(params%method) .eq. 'LU') ) then
-            call linSolve(fjac, rhs, dx)
+            call linSolve(fjac, rhs, dx, istat=linStatus)
           else if (  (trim(params%lib) .eq. 'LAPACK') .and.
      &            (trim(params%method) .eq. 'LU') ) then
-            call linSolve(fjac, rhs, dx, params%lib)
+            call linSolve(fjac, rhs, dx, params%lib,
+     &                    istat=linStatus)
           else if (  (trim(params%lib) .eq. 'LAPACK') .and.
      &            (trim(params%method)) .eq. 'QR' )  then
-            call linSolve(fjac, rhs, dx, params%lib, params%method)
+            call linSolve(fjac, rhs, dx, params%lib, params%method,
+     &                    istat=linStatus)
           else
             call msg%ferror(flag=error, src='fsolve',
      &            msg='Illegal arguments for library and method.')
             return
           end if
 
+          if (linStatus .ne. 0) then
+            call msg%ferror(flag=error, src='fsolve',
+     &            msg='Linear solve failed.', ia=linStatus)
+            if (present(sflag)) sflag = .false.
+            return
+          end if
+
           if ( trim(params%algo) .eq. 'Newton' ) then
-            x = x + dx
+            x   = x + dx
 
           else if ( trim(params%algo) .eq. 'Linesearch' ) then
-            call lineSearch(func, x, fjac, fvec,
-     &                  dx, params, x, vars)
+            xBase = x
+            call lineSearch(func, xBase, fjac, fvec,
+     &                  dx, params, x, vars, lsflag)
+            if (.not. lsflag) then
+              call msg%ferror(flag=warn, src='fsolve',
+     &            msg='Line search failed to find a valid step.')
+              if (present(sflag)) then
+                sflag = .false.
+              end if
+              return
+            end if
           else
             call msg%ferror(flag=error, src='fsolve',
      &                msg='Illegal argument.', ch=trim(params%algo))
@@ -407,19 +455,22 @@
 
         call msg%ferror(flag=warn, src='fsolve',
      &          msg='Execeeded maximum iterations.')
-        sflag = .false.
 
+        if (present(sflag)) then
+          sflag = .false.
+        end if
 
       end subroutine fsolve
 
 ! **********************************************************************
 
       subroutine lineSearch(func, xOld, fjac, fvec,
-     &                      dx, params, x, vars)
+     &                      dx, params, x, vars, lsflag)
       ! uses a backtracking linesearch algorithm. see details below:
       ! https://en.wikipedia.org/wiki/Backtracking_line_search
 
-        use global_parameters, only: wp, two, half
+        use global_parameters, only: wp, half
+        use error_logging
 
         implicit none
 
@@ -431,24 +482,29 @@
         type(options), intent(in)           :: params
         real(wp), intent(inout)             :: x(:)
         real(wp), intent(in), optional      :: vars(:)
+        logical, intent(out), optional      :: lsflag
         real(wp)                            :: gradf(size(x))
-        real(wp)                            :: t, slope, alpha
-        logical                             :: checkAlpha
+        real(wp)                            :: slope, alpha
         real(wp)                            :: xtmp(size(x))
         real(wp)                            :: fvectmp(size(x))
-        real(wp)                            :: fnorm0, fnorm, ftmp
-        integer                             :: i
+        real(wp)                            :: phi0, phitmp
 
-        fnorm0  = norm2(fvec)
-        gradf   = matmul(fvec, fjac)
-        slope   = dot_product(dx, gradf)
-        t       = - params%c * slope
+        if (present(lsflag)) lsflag = .false.
+
+        phi0        = half * dot_product(fvec, fvec)
+        gradf       = matmul(fvec, fjac)
+        slope       = dot_product(dx, gradf)
+
+        if (slope .ge. 0.0_wp) then
+          call msg%ferror(flag=warn, src='lineSearch',
+     &        msg='Search direction is not a descent direction.')
+          return
+        end if
 
         alpha       = params%maxAlpha
-        checkAlpha  = .false.
 
         do
-          xtmp = xOld + alpha * dx
+          xtmp      = xOld + alpha * dx
 
           if ( present(vars) ) then
             call func(xtmp, fvectmp, vars=vars)
@@ -456,21 +512,23 @@
             call func(xtmp, fvectmp)
           end if
 
-          ftmp = norm2(fvectmp)
+          phitmp  = half * dot_product(fvectmp, fvectmp)
 
-          if ( ((fnorm0-ftmp)/two .ge. alpha*t) .or. checkAlpha ) then
+          if ( phitmp .le. phi0 + params%c*alpha*slope ) then
             x     = xtmp
             fvec  = fvectmp
-            fnorm = ftmp
+            if (present(lsflag)) lsflag = .true.
             exit
           end if
 
-          alpha = alpha * params%tau    ! reduce step size
-
           if (alpha .le. params%minAlpha) then
-            alpha       = params%minAlpha
-            checkAlpha  = .true.        ! will stop on the next step
+            call msg%ferror(flag=warn, src='lineSearch',
+     &          msg='Minimum step size reached.')
+            return
           end if
+
+          alpha   = alpha * params%tau    ! reduce step size
+          if (alpha .lt. params%minAlpha) alpha = params%minAlpha
 
         end do
 
@@ -504,31 +562,31 @@
         x_h = x
 
         if ( abs(x_h) .le. one) then
-          h = params%fdStep
+          h   = params%fdStep
         else
-          h = abs(x_h)*params%fdStep
+          h   = abs(x_h)*params%fdStep
         end if
 
         if ( trim(params%fdScheme) .eq. 'Forward') then
 
-          x_h = x_h + h
+          x_h   = x_h + h
           call func(x_h, fx_h, vars=vars)
-          dfx = (fx_h - fx)/h
+          dfx   = (fx_h - fx)/h
 
         else if( trim(params%fdScheme) .eq. 'Backward') then
 
-          x_h = x_h - h
+          x_h   = x_h - h
           call func(x_h, fx_h, vars=vars)
-          dfx = (fx_h - fx)/h
+          dfx   = (fx - fx_h)/h
 
         else if ( trim(params%fdScheme) .eq. 'Central' ) then
 
-          x_h = x_h + h
+          x_h   = x_h + h
           call func(x_h, fx_h1, vars=vars)
-          x_h = x
-          x_h = x_h - h
+          x_h   = x
+          x_h   = x_h - h
           call func(x_h, fx_h2, vars=vars)
-          dfx = (fx_h1 - fx_h2)/(two*h)
+          dfx   = (fx_h1 - fx_h2)/(two*h)
 
         else
           call msg%ferror(flag=error, src='dfdx_n',
@@ -566,12 +624,12 @@
 
         do i = 1, size(x)
 
-          x_h = x
+          x_h   = x
 
           if ( abs(x_h(i)) .le. one) then
-            h = params%fdStep
+            h   = params%fdStep
           else
-            h = abs(x_h(i))*params%fdStep
+            h   = abs(x_h(i))*params%fdStep
           end if
 
           if ( trim(params%fdScheme).eq. 'Forward' ) then
@@ -584,7 +642,7 @@
 
             x_h(i)    = x_h(i) - h
             call func(x_h, fvec_h, vars=vars)
-            fjac(:,i) = (fvec_h - fvec)/h
+            fjac(:,i) = (fvec - fvec_h)/h
 
           else if ( trim(params%fdScheme) .eq. 'Central' )  then
 

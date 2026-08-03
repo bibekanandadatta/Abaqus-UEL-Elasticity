@@ -13,7 +13,7 @@ This repository contains the Fortran source code for small strain isotropic line
 
 If you have `git` installed, you can clone the repository to your local machine using
 ```bash
-git clone https://github.com/bibekananda-datta/Abaqus-UEL-Elasticity.git
+git clone https://github.com/bibekanandadatta/Abaqus-UEL-Elasticity.git
 ```
 
 You can also `fork` the repository and sync as updates are deployed, develop your code by creating a separate branch, and propose updates using the `pull` and `merge` features of GitHub.
